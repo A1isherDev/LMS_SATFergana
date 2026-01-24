@@ -1,0 +1,29 @@
+# Django Core
+Django>=6.0.1,<7.0
+djangorestframework>=3.14.0
+djangorestframework-simplejwt>=5.3.0
+
+# Database
+psycopg2-binary>=2.9.9
+
+# Async Tasks
+celery>=5.3.4
+redis>=5.0.1
+django-celery-beat>=2.5.0
+
+# CORS & Security
+django-cors-headers>=4.3.1
+
+# Image Processing
+Pillow>=10.2.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Development Tools (optional, but recommended)
+ipython>=8.18.1
+django-extensions>=3.2.3
+
+# Production (optional - uncomment when deploying)
+# gunicorn>=21.2.0
+# whitenoise>=6.6.0
