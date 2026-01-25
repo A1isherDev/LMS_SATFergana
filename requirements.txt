@@ -17,6 +17,9 @@ django-cors-headers>=4.3.1
 # Image Processing
 Pillow>=10.2.0
 
+# Filtering
+django-filter>=23.5
+
 # Environment Variables
 python-dotenv>=1.0.0
 
@@ -27,3 +30,7 @@ django-extensions>=3.2.3
 # Production (optional - uncomment when deploying)
 # gunicorn>=21.2.0
 # whitenoise>=6.6.0
+
+# Additional dependencies found in codebase
+# Note: django-filter is the correct package name (not django_filters)
+# Note: Pillow is required for ImageField in questionbank.models

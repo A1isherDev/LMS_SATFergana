@@ -1,1 +1,289 @@
-# Question bank views
+"""
+Views for the questionbank app.
+"""
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.db.models import Q, Count, Avg, F
+from django_filters.rest_framework import DjangoFilterBackend
+from apps.questionbank.models import Question, QuestionAttempt
+from apps.questionbank.serializers import (
+    QuestionSerializer,
+    QuestionListSerializer,
+    QuestionStudentSerializer,
+    QuestionAttemptSerializer,
+    QuestionAttemptCreateSerializer,
+    QuestionStatsSerializer,
+    StudentProgressSerializer
+)
+from apps.common.permissions import IsTeacherOrAdmin, IsStudent
+
+
+class QuestionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Question model.
+    Different access levels for teachers/admins vs students.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['question_type', 'skill_tag', 'difficulty', 'is_active']
+    search_fields = ['question_text', 'skill_tag']
+    
+    def get_queryset(self):
+        """Return queryset based on user role."""
+        user = self.request.user
+        
+        if user.is_admin:
+            return Question.objects.all()
+        elif user.is_teacher:
+            return Question.objects.all()
+        elif user.is_student:
+            return Question.objects.filter(is_active=True)
+        else:
+            return Question.objects.none()
+    
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action and user role."""
+        user = self.request.user
+        
+        if self.action == 'list':
+            return QuestionListSerializer
+        elif user.is_student and self.action in ['retrieve']:
+            return QuestionStudentSerializer
+        return QuestionSerializer
+    
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsTeacherOrAdmin()]
+        return [permissions.IsAuthenticated()]
+    
+    @action(detail=False, methods=['get'])
+    def practice(self, request):
+        """Get questions for practice mode (student view)."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can access practice questions"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get query parameters
+        question_type = request.query_params.get('question_type')
+        skill_tag = request.query_params.get('skill_tag')
+        difficulty = request.query_params.get('difficulty')
+        count = int(request.query_params.get('count', 10))
+        
+        # Build queryset
+        queryset = Question.objects.filter(is_active=True)
+        
+        if question_type:
+            queryset = queryset.filter(question_type=question_type)
+        if skill_tag:
+            queryset = queryset.filter(skill_tag=skill_tag)
+        if difficulty:
+            queryset = queryset.filter(difficulty=difficulty)
+        
+        # Exclude questions the student has already attempted in practice mode
+        attempted_questions = QuestionAttempt.objects.filter(
+            student=request.user,
+            context='PRACTICE'
+        ).values_list('question_id', flat=True)
+        
+        queryset = queryset.exclude(id__in=attempted_questions)
+        
+        # Limit results
+        questions = queryset.order_by('?')[:count]
+        
+        serializer = QuestionStudentSerializer(questions, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def attempt(self, request, pk=None):
+        """Record an attempt at a question."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can attempt questions"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        question = self.get_object()
+        
+        # Check if question is active
+        if not question.is_active:
+            return Response(
+                {"detail": "Cannot attempt inactive question"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = QuestionAttemptCreateSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        # Override question with the one from URL
+        serializer.validated_data['question'] = question
+        
+        attempt = serializer.save()
+        
+        # Return attempt result with explanation
+        response_data = {
+            'attempt': QuestionAttemptSerializer(attempt).data,
+            'is_correct': attempt.is_correct,
+            'correct_answer': question.correct_answer,
+            'explanation': question.explanation
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Get question statistics (teachers/admins only)."""
+        if not (request.user.is_teacher or request.user.is_admin):
+            return Response(
+                {"detail": "Only teachers and admins can view question statistics"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get filter parameters
+        question_type = request.query_params.get('question_type')
+        skill_tag = request.query_params.get('skill_tag')
+        difficulty = request.query_params.get('difficulty')
+        
+        # Build queryset
+        queryset = Question.objects.all()
+        
+        if question_type:
+            queryset = queryset.filter(question_type=question_type)
+        if skill_tag:
+            queryset = queryset.filter(skill_tag=skill_tag)
+        if difficulty:
+            queryset = queryset.filter(difficulty=difficulty)
+        
+        # Calculate statistics
+        questions_with_stats = []
+        
+        for question in queryset:
+            attempts = QuestionAttempt.objects.filter(question=question)
+            
+            total_attempts = attempts.count()
+            correct_attempts = attempts.filter(is_correct=True).count()
+            accuracy = (correct_attempts / total_attempts * 100) if total_attempts > 0 else 0
+            avg_time = attempts.aggregate(avg_time=Avg('time_spent_seconds'))['avg_time'] or 0
+            
+            questions_with_stats.append({
+                'question_id': question.id,
+                'question_type': question.question_type,
+                'skill_tag': question.skill_tag,
+                'difficulty': question.difficulty,
+                'total_attempts': total_attempts,
+                'correct_attempts': correct_attempts,
+                'accuracy_percentage': round(accuracy, 2),
+                'average_time_seconds': round(avg_time, 2)
+            })
+        
+        serializer = QuestionStatsSerializer(questions_with_stats, many=True)
+        return Response(serializer.data)
+
+
+class QuestionAttemptViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for QuestionAttempt model.
+    Students can only see their own attempts.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return queryset based on user role."""
+        user = self.request.user
+        
+        if user.is_admin:
+            return QuestionAttempt.objects.select_related('question', 'student').all()
+        elif user.is_teacher:
+            return QuestionAttempt.objects.select_related('question', 'student').all()
+        elif user.is_student:
+            return QuestionAttempt.objects.filter(
+                student=user
+            ).select_related('question')
+        else:
+            return QuestionAttempt.objects.none()
+    
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action."""
+        if self.action == 'create':
+            return QuestionAttemptCreateSerializer
+        return QuestionAttemptSerializer
+    
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action == 'create':
+            return [IsStudent()]
+        return [permissions.IsAuthenticated()]
+    
+    @action(detail=False, methods=['get'])
+    def my_progress(self, request):
+        """Get current student's progress statistics."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can view their progress"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        student = request.user
+        
+        # Get progress by question type
+        question_types = ['MATH', 'READING', 'WRITING']
+        progress_data = []
+        
+        for q_type in question_types:
+            attempts = QuestionAttempt.objects.filter(
+                student=student,
+                question__question_type=q_type
+            )
+            
+            total_attempts = attempts.count()
+            correct_attempts = attempts.filter(is_correct=True).count()
+            accuracy = (correct_attempts / total_attempts * 100) if total_attempts > 0 else 0
+            avg_time = attempts.aggregate(avg_time=Avg('time_spent_seconds'))['avg_time'] or 0
+            
+            # Get skill breakdown
+            skill_stats = {}
+            for skill in attempts.values('question__skill_tag').annotate(
+                skill_count=Count('id'),
+                skill_correct=Count('id', filter=Q(is_correct=True))
+            ):
+                skill_name = skill['question__skill_tag']
+                skill_accuracy = (skill['skill_correct'] / skill['skill_count'] * 100) if skill['skill_count'] > 0 else 0
+                skill_stats[skill_name] = {
+                    'attempts': skill['skill_count'],
+                    'accuracy': round(skill_accuracy, 2)
+                }
+            
+            progress_data.append({
+                'question_type': q_type,
+                'total_attempts': total_attempts,
+                'correct_attempts': correct_attempts,
+                'accuracy_percentage': round(accuracy, 2),
+                'average_time_seconds': round(avg_time, 2),
+                'skill_breakdown': skill_stats
+            })
+        
+        serializer = StudentProgressSerializer(progress_data, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        """Get recent attempts for the current student."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can view their attempts"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        limit = int(request.query_params.get('limit', 20))
+        attempts = QuestionAttempt.objects.filter(
+            student=request.user
+        ).select_related('question').order_by('-attempted_at')[:limit]
+        
+        serializer = QuestionAttemptSerializer(attempts, many=True)
+        return Response(serializer.data)

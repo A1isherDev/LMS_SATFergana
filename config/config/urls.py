@@ -15,6 +15,13 @@ urlpatterns = [
     
     # API routes
     path('api/', include('apps.users.urls')),
+    path('api/', include('apps.classes.urls')),
+    path('api/', include('apps.homework.urls')),
+    path('api/', include('apps.questionbank.urls')),
+    path('api/', include('apps.mockexams.urls')),
+    path('api/', include('apps.flashcards.urls')),
+    path('api/', include('apps.rankings.urls')),
+    path('api/', include('apps.analytics.urls')),
     
     # JWT token endpoints
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

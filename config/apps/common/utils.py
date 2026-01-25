@@ -75,6 +75,32 @@ def convert_reading_writing_raw_to_scaled(raw_score: int) -> int:
     return READING_WRITING_RAW_TO_SCALED.get(raw_score, 200)
 
 
+def convert_raw_to_scaled_sat(raw_score: int, section: str) -> int:
+    """
+    Convert raw score to scaled score for a specific SAT section.
+    
+    Args:
+        raw_score: Raw score
+        section: 'math', 'reading_writing', or 'reading'/'writing'
+        
+    Returns:
+        Scaled score from 200 to 800
+        
+    Raises:
+        ValueError: If raw_score is out of valid range or section is invalid
+    """
+    if section == 'math':
+        if raw_score < 0 or raw_score > 58:
+            raise ValueError(f"Math raw score must be between 0 and 58, got {raw_score}")
+        return MATH_RAW_TO_SCALED.get(raw_score, 200)
+    elif section in ['reading_writing', 'reading', 'writing']:
+        if raw_score < 0 or raw_score > 96:
+            raise ValueError(f"Reading+Writing raw score must be between 0 and 96, got {raw_score}")
+        return READING_WRITING_RAW_TO_SCALED.get(raw_score, 200)
+    else:
+        raise ValueError(f"Invalid section: {section}. Must be 'math', 'reading_writing', 'reading', or 'writing'")
+
+
 def convert_to_sat_score(math_raw: int, reading_raw: int, writing_raw: int) -> Dict[str, int]:
     """
     Convert raw scores to SAT scaled scores and calculate total.

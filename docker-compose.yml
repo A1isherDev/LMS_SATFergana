@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: sat_fergana_db
+    environment:
+      POSTGRES_DB: sat_lms
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - sat_fergana_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: sat_fergana_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sat_fergana_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sat_fergana_backend
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-l&(ui)uumovp2j!aaqj%&5806rrs8x#t9oyl7s-3w)w(4lnzc$
+      - DB_NAME=sat_lms
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+    volumes:
+      - ./config:/app/config
+      - ./apps:/app/apps
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sat_fergana_network
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sat_fergana_celery_worker
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-l&(ui)uumovp2j!aaqj%&5806rrs8x#t9oyl7s-3w)w(4lnzc$
+      - DB_NAME=sat_lms
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./config:/app/config
+      - ./apps:/app/apps
+    depends_on:
+      - db
+      - redis
+    networks:
+      - sat_fergana_network
+    command: celery -A config worker --loglevel=info
+
+  # Celery Beat Scheduler
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sat_fergana_celery_beat
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-l&(ui)uumovp2j!aaqj%&5806rrs8x#t9oyl7s-3w)w(4lnzc$
+      - DB_NAME=sat_lms
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./config:/app/config
+      - ./apps:/app/apps
+    depends_on:
+      - db
+      - redis
+    networks:
+      - sat_fergana_network
+    command: celery -A config beat --loglevel=info
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sat_fergana_frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - sat_fergana_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_files:
+  static_files:
+
+networks:
+  sat_fergana_network:
+    driver: bridge
