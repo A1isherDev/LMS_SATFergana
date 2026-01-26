@@ -6,6 +6,11 @@ export interface User {
   last_name: string;
   role: 'STUDENT' | 'TEACHER' | 'ADMIN';
   invitation_code?: string;
+  phone_number?: string;
+  date_of_birth?: string;
+  grade_level?: number;
+  target_sat_score?: number;
+  bio?: string;
   created_at: string;
   updated_at: string;
 }

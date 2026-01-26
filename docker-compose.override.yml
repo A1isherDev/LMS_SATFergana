@@ -1,6 +1,4 @@
 # Docker Development Override
-version: '3.8'
-
 services:
   backend:
     volumes:

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
@@ -46,10 +47,29 @@ interface Class {
 
 export default function ClassesPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [classes, setClasses] = useState<Class[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const handleCreateClass = () => {
+    router.push('/classes/create');
+  };
+
+  const handleViewClass = (classId: number) => {
+    router.push(`/classes/${classId}`);
+  };
+
+  const handleClassAnalytics = (classId: number) => {
+    console.log('View analytics for class', classId);
+    alert('Class analytics feature coming soon!');
+  };
+
+  const handleFilter = () => {
+    console.log('Filter clicked');
+    alert('Filter feature coming soon!');
+  };
 
   useEffect(() => {
     // TODO: Fetch actual classes from API
@@ -164,7 +184,7 @@ export default function ClassesPage() {
             </div>
             {user?.role === 'TEACHER' && (
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={handleCreateClass}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -185,7 +205,10 @@ export default function ClassesPage() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            <button 
+              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={handleFilter}
+            >
               <Filter className="h-4 w-4 mr-2" />
               Filter
             </button>
@@ -261,11 +284,17 @@ export default function ClassesPage() {
 
                   {/* Actions */}
                   <div className="flex space-x-2">
-                    <button className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+                    <button 
+                      className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                      onClick={() => handleViewClass(cls.id)}
+                    >
                       View Class
                     </button>
                     {user?.role === 'TEACHER' && (
-                      <button className="px-3 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors">
+                      <button 
+                        className="px-3 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={() => handleClassAnalytics(cls.id)}
+                      >
                         <TrendingUp className="h-4 w-4" />
                       </button>
                     )}

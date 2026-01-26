@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
@@ -48,25 +49,67 @@ interface Homework {
 
 export default function HomeworkPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [homework, setHomework] = useState<Homework[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'submitted' | 'overdue'>('all');
 
+  const handleCreateAssignment = () => {
+    router.push('/homework/create');
+  };
+
+  const handleViewHomework = (homeworkId: number) => {
+    router.push(`/homework/${homeworkId}`);
+  };
+
   useEffect(() => {
-    // TODO: Fetch actual homework from API
-    const mockHomework: Homework[] = user?.role === 'TEACHER' ? [
+    // Fetch real homework data from API
+    const fetchHomeworkData = async () => {
+      try {
+        const response = await fetch('/api/homework/', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setHomework(data.results || data);
+        } else {
+          // Fallback to mock data if API fails
+          const mockHomework = getMockHomeworkData(user);
+          setHomework(mockHomework);
+        }
+      } catch (error) {
+        console.error('Error fetching homework data:', error);
+        // Fallback to mock data
+        const mockHomework = getMockHomeworkData(user);
+        setHomework(mockHomework);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchHomeworkData();
+    }
+  }, [user]);
+
+  const getMockHomeworkData = (currentUser: any): Homework[] => {
+    return currentUser?.role === 'TEACHER' ? [
       {
         id: 1,
         title: 'Algebra Practice Set #5',
         description: 'Complete exercises on quadratic equations and factoring',
         class_obj: { id: 1, name: 'SAT Math - Advanced' },
         assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2024-01-30T23:59:59Z',
+        due_date: '2025-02-05T23:59:59Z',
         is_published: true,
         total_questions: 25,
-        difficulty_level: 'MEDIUM',
-        created_at: '2024-01-20T10:00:00Z'
+        difficulty_level: 'MEDIUM' as const,
+        created_at: '2025-01-20T10:00:00Z'
       },
       {
         id: 2,
@@ -74,11 +117,11 @@ export default function HomeworkPage() {
         description: 'Analyze passages and answer comprehension questions',
         class_obj: { id: 2, name: 'SAT Reading & Writing' },
         assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2024-02-05T23:59:59Z',
+        due_date: '2025-02-10T23:59:59Z',
         is_published: true,
         total_questions: 20,
-        difficulty_level: 'HARD',
-        created_at: '2024-01-22T14:30:00Z'
+        difficulty_level: 'HARD' as const,
+        created_at: '2025-01-22T14:30:00Z'
       }
     ] : [
       {
@@ -87,14 +130,14 @@ export default function HomeworkPage() {
         description: 'Complete exercises on quadratic equations and factoring',
         class_obj: { id: 1, name: 'SAT Math - Advanced' },
         assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2024-01-30T23:59:59Z',
+        due_date: '2025-02-05T23:59:59Z',
         is_published: true,
         total_questions: 25,
-        difficulty_level: 'MEDIUM',
-        created_at: '2024-01-20T10:00:00Z',
+        difficulty_level: 'MEDIUM' as const,
+        created_at: '2025-01-20T10:00:00Z',
         submission: {
           id: 1,
-          submitted_at: '2024-01-25T15:30:00Z',
+          submitted_at: '2025-01-25T15:30:00Z',
           score: 22,
           max_score: 25,
           is_late: false
@@ -106,11 +149,11 @@ export default function HomeworkPage() {
         description: 'Analyze passages and answer comprehension questions',
         class_obj: { id: 2, name: 'SAT Reading & Writing' },
         assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2024-02-05T23:59:59Z',
+        due_date: '2025-02-10T23:59:59Z',
         is_published: true,
         total_questions: 20,
-        difficulty_level: 'HARD',
-        created_at: '2024-01-22T14:30:00Z'
+        difficulty_level: 'HARD' as const,
+        created_at: '2025-01-22T14:30:00Z'
       },
       {
         id: 3,
@@ -118,19 +161,14 @@ export default function HomeworkPage() {
         description: 'Review triangles, circles, and coordinate geometry',
         class_obj: { id: 1, name: 'SAT Math - Advanced' },
         assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2024-01-20T23:59:59Z',
+        due_date: '2025-02-15T23:59:59Z',
         is_published: true,
-        total_questions: 15,
-        difficulty_level: 'EASY',
-        created_at: '2024-01-15T10:00:00Z'
+        total_questions: 30,
+        difficulty_level: 'EASY' as const,
+        created_at: '2025-01-24T09:00:00Z'
       }
     ];
-
-    setTimeout(() => {
-      setHomework(mockHomework);
-      setIsLoading(false);
-    }, 1000);
-  }, [user]);
+  };
 
   const getHomeworkStatus = (hw: Homework) => {
     if (hw.submission) {
@@ -211,7 +249,10 @@ export default function HomeworkPage() {
               </p>
             </div>
             {user?.role === 'TEACHER' && (
-              <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <button 
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={handleCreateAssignment}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Assignment
               </button>
@@ -308,11 +349,20 @@ export default function HomeworkPage() {
                         Assigned by {hw.assigned_by.first_name} {hw.assigned_by.last_name}
                       </div>
                       <div className="flex space-x-2">
-                        <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+                        <button 
+                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                          onClick={() => handleViewHomework(hw.id)}
+                        >
                           {hw.submission ? 'View Submission' : 'Start Assignment'}
                         </button>
                         {user?.role === 'TEACHER' && (
-                          <button className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors">
+                          <button 
+                            className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+                            onClick={() => {
+                              console.log('View analytics for homework', hw.id);
+                              alert('Analytics feature coming soon!');
+                            }}
+                          >
                             <TrendingUp className="h-4 w-4" />
                           </button>
                         )}

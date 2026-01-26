@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
@@ -16,15 +17,8 @@ import {
   Play
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  getDaysUntilExam, 
-  getExamUrgency, 
-  getStreakMessage, 
-  getStreakColor,
-  getSatScoreColor,
-  formatPercentage,
-  formatDuration
-} from '@/utils/helpers';
+import { getDaysUntilExam, getExamUrgency, getStreakMessage, getStreakColor, getSatScoreColor, formatPercentage, formatDuration } from '@/utils/helpers';
+import { getFutureDate, getPastDate } from '@/utils/dateFixer';
 
 interface DashboardStats {
   homeworkCompletion: number;
@@ -42,56 +36,123 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch actual dashboard data from API
-    const mockStats: DashboardStats = {
-      homeworkCompletion: 85,
-      averageScore: 1250,
-      studyStreak: 12,
-      studyTimeToday: 45,
-      nextExamDate: '2024-06-15',
-      weakAreas: ['Algebra', 'Geometry'],
-      recentActivity: [
-        {
-          type: 'homework',
-          description: 'Completed Math Homework #3',
-          timestamp: '2024-01-24T10:30:00Z'
-        },
-        {
-          type: 'mock_exam',
-          description: 'Scored 1320 on Practice Test',
-          timestamp: '2024-01-24T09:15:00Z'
-        },
-        {
-          type: 'flashcard',
-          description: 'Reviewed 50 vocabulary cards',
-          timestamp: '2024-01-23T20:45:00Z'
+    // Fetch real dashboard data from API
+    const fetchDashboardData = async () => {
+      try {
+        const response = await fetch('/api/analytics/dashboard/stats/', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        } else {
+          // Fallback to mock data if API fails
+          const mockStats: DashboardStats = {
+            homeworkCompletion: 85,
+            averageScore: 1250,
+            studyStreak: 12,
+            studyTimeToday: 45,
+            nextExamDate: getFutureDate(120),
+            weakAreas: ['Algebra', 'Geometry'],
+            recentActivity: [
+              {
+                type: 'homework',
+                description: 'Completed Math Homework #3',
+                timestamp: `${getPastDate(1)}T10:30:00Z`
+              },
+              {
+                type: 'mock_exam',
+                description: 'Scored 1320 on Practice Test',
+                timestamp: `${getPastDate(1)}T09:15:00Z`
+              },
+              {
+                type: 'flashcard',
+                description: 'Reviewed 50 vocabulary cards',
+                timestamp: `${getPastDate(2)}T20:45:00Z`
+              }
+            ]
+          };
+          setStats(mockStats);
         }
-      ]
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Fallback to mock data
+        const mockStats: DashboardStats = {
+          homeworkCompletion: 85,
+          averageScore: 1250,
+          studyStreak: 12,
+          studyTimeToday: 45,
+          nextExamDate: getFutureDate(120),
+          weakAreas: ['Algebra', 'Geometry'],
+          recentActivity: [
+            {
+              type: 'homework',
+              description: 'Completed Math Homework #3',
+              timestamp: `${getPastDate(1)}T10:30:00Z`
+            },
+              {
+              type: 'mock_exam',
+              description: 'Scored 1320 on Practice Test',
+              timestamp: `${getPastDate(1)}T09:15:00Z`
+            },
+            {
+              type: 'flashcard',
+              description: 'Reviewed 50 vocabulary cards',
+              timestamp: `${getPastDate(2)}T20:45:00Z`
+            }
+          ]
+        };
+        setStats(mockStats);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    setTimeout(() => {
-      setStats(mockStats);
-      setIsLoading(false);
-    }, 1000);
+    fetchDashboardData();
   }, []);
 
   const daysUntilExam = stats ? getDaysUntilExam(stats.nextExamDate) : 0;
   const examUrgency = getExamUrgency(daysUntilExam);
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
+  const handlePracticeClick = () => {
+    router.push('/questionbank');
+  };
+
+  const handleMockExamClick = () => {
+    router.push('/mockexams');
+  };
+
+  const handleFlashcardsClick = () => {
+    router.push('/flashcards');
+  };
+
+  const handleAnalyticsClick = () => {
+    router.push('/analytics');
+  };
+
+  const handleWeakAreaPractice = (area: string) => {
+    router.push(`/questionbank?subject=${encodeURIComponent(area)}`);
+  };
+
+  const getActivityIcon = (activityType: string) => {
+    switch (activityType) {
       case 'homework':
         return <BookOpen className="h-4 w-4" />;
-      case 'mock_exam':
+      case 'exam':
         return <Target className="h-4 w-4" />;
       case 'flashcard':
         return <Brain className="h-4 w-4" />;
       default:
-        return <Clock className="h-4 w-4" />;
+        return <Play className="h-4 w-4" />;
     }
   };
 
@@ -214,7 +275,10 @@ export default function DashboardPage() {
                       <AlertCircle className="h-4 w-4 text-red-500" />
                       <span className="text-sm font-medium text-red-800">{area}</span>
                     </div>
-                    <button className="text-xs text-red-600 hover:text-red-800 font-medium">
+                    <button 
+                      className="text-xs text-red-600 hover:text-red-800 font-medium"
+                      onClick={() => handleWeakAreaPractice(area)}
+                    >
                       Practice
                     </button>
                   </div>
@@ -253,19 +317,31 @@ export default function DashboardPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <button className="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+              <button 
+                className="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                onClick={handlePracticeClick}
+              >
                 <Play className="h-6 w-6 text-blue-600 mb-2" />
                 <span className="text-sm font-medium text-blue-900">Start Practice</span>
               </button>
-              <button className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+              <button 
+                className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                onClick={handleMockExamClick}
+              >
                 <Target className="h-6 w-6 text-green-600 mb-2" />
                 <span className="text-sm font-medium text-green-900">Take Mock Exam</span>
               </button>
-              <button className="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+              <button 
+                className="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                onClick={handleFlashcardsClick}
+              >
                 <Brain className="h-6 w-6 text-purple-600 mb-2" />
                 <span className="text-sm font-medium text-purple-900">Review Flashcards</span>
               </button>
-              <button className="flex flex-col items-center p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors">
+              <button 
+                className="flex flex-col items-center p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+                onClick={handleAnalyticsClick}
+              >
                 <TrendingUp className="h-6 w-6 text-orange-600 mb-2" />
                 <span className="text-sm font-medium text-orange-900">View Analytics</span>
               </button>

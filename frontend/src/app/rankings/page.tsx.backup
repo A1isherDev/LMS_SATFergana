@@ -80,7 +80,7 @@ export default function RankingsPage() {
   useEffect(() => {
     const fetchRankings = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/rankings/leaderboard/?period_type=${selectedPeriod}&limit=50`, {
+        const response = await fetch(`/api/rankings/leaderboard/?period_type=${selectedPeriod}&limit=50`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
             'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ export default function RankingsPage() {
         
         if (response.ok) {
           const data = await response.json();
-          const transformedData = data.leaderboard?.map((entry: any, index: number) => ({
+          const transformedData = data.leaderboard_entries?.map((entry: any, index: number) => ({
             student: {
               id: entry.student_id,
               first_name: entry.student_name?.split(' ')[0] || 'Student',
@@ -236,7 +236,6 @@ export default function RankingsPage() {
         class_name: 'SAT Math - Advanced'
       }
     ];
-  };
 
   const filteredLeaderboard = leaderboard.filter(entry =>
     entry.student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

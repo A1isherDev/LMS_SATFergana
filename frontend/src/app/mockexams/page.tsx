@@ -75,7 +75,7 @@ export default function MockExamsPage() {
         total_questions: 154,
         time_limit_minutes: 180,
         is_active: true,
-        created_at: '2024-01-15T10:00:00Z'
+        created_at: '2025-01-15T10:00:00Z'
       },
       {
         id: 2,
@@ -85,7 +85,7 @@ export default function MockExamsPage() {
         total_questions: 58,
         time_limit_minutes: 80,
         is_active: true,
-        created_at: '2024-01-18T14:30:00Z'
+        created_at: '2025-01-18T14:30:00Z'
       },
       {
         id: 3,
@@ -95,7 +95,7 @@ export default function MockExamsPage() {
         total_questions: 96,
         time_limit_minutes: 100,
         is_active: true,
-        created_at: '2024-01-20T09:15:00Z'
+        created_at: '2025-01-20T09:15:00Z'
       }
     ];
 
@@ -103,8 +103,8 @@ export default function MockExamsPage() {
       {
         id: 1,
         mock_exam: mockExams[0],
-        started_at: '2024-01-22T09:00:00Z',
-        submitted_at: '2024-01-22T12:15:00Z',
+        started_at: '2025-01-22T09:00:00Z',
+        submitted_at: '2025-01-22T12:15:00Z',
         is_completed: true,
         sat_score: 1280,
         math_score: 640,
