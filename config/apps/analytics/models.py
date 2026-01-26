@@ -127,7 +127,7 @@ class StudentProgress(TimestampedModel):
         homework_submissions = HomeworkSubmission.objects.filter(
             student=student,
             submitted_at__date=date,
-            is_submitted=True
+            submitted_at__isnull=False
         )
         
         progress.homework_completed = homework_submissions.count()

@@ -131,7 +131,9 @@ class Ranking(TimestampedModel):
         
         elif period_type == 'ALL_TIME':
             # Fixed date for all-time rankings
-            return timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
+            import datetime as dt
+            from django.utils import timezone as tz
+            return tz.make_aware(dt.datetime(2020, 1, 1), tz.get_default_timezone())
         
         return now
     
@@ -172,8 +174,7 @@ class Ranking(TimestampedModel):
         homework_submissions = HomeworkSubmission.objects.filter(
             student=student,
             submitted_at__gte=period_start,
-            submitted_at__lte=period_end,
-            is_submitted=True
+            submitted_at__lte=period_end
         )
         
         # Get mock exam attempts in period

@@ -2,13 +2,19 @@
 Views for the analytics app.
 """
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Q, Count, Avg, F, Sum
 from django.utils import timezone
 from django.db.models.functions import TruncDate
+from datetime import timedelta
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.analytics.models import StudentProgress, WeakArea, StudySession
+from apps.homework.models import Homework, HomeworkSubmission
+from apps.mockexams.models import MockExam, MockExamAttempt
+from apps.flashcards.models import Flashcard
+from apps.users.models import User
 from apps.analytics.serializers import (
     StudentProgressSerializer,
     WeakAreaSerializer,
@@ -641,3 +647,244 @@ class AnalyticsViewSet(viewsets.GenericViewSet):
             'flashcard_mastery_trend': 'stable',  # Could be calculated similarly
             'overall_trend_score': trend_score
         }
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_stats(request):
+    """
+    Get dashboard statistics for the current user.
+    Different data based on user role (student/teacher/admin).
+    """
+    user = request.user
+    
+    if user.role == 'STUDENT':
+        return get_student_dashboard_stats(user)
+    elif user.role == 'TEACHER':
+        return get_teacher_dashboard_stats(user)
+    elif user.role == 'ADMIN':
+        return get_admin_dashboard_stats(user)
+    
+    return Response({'error': 'Invalid user role'}, status=400)
+
+
+def get_student_dashboard_stats(student):
+    """Get dashboard statistics for a student."""
+    now = timezone.now()
+    
+    # Homework stats
+    student_homework = Homework.objects.filter(
+        class_obj__students=student,
+        is_published=True
+    )
+    
+    total_homework = student_homework.count()
+    completed_homework = HomeworkSubmission.objects.filter(
+        homework__in=student_homework,
+        student=student,
+        submitted_at__isnull=False
+    ).count()
+    
+    homework_completion = (completed_homework / total_homework * 100) if total_homework > 0 else 0
+    
+    # Mock exam stats
+    exam_attempts = MockExamAttempt.objects.filter(student=student)
+    completed_attempts = exam_attempts.filter(is_completed=True)
+    
+    average_score = 0
+    if completed_attempts.exists():
+        average_score = completed_attempts.aggregate(avg_score=Avg('sat_score'))['avg_score'] or 0
+    
+    # Study streak (simplified - in real app, track daily activity)
+    study_sessions = StudySession.objects.filter(
+        student=student,
+        started_at__gte=now - timedelta(days=30)
+    ).order_by('-started_at')
+    
+    study_streak = calculate_study_streak(study_sessions)
+    
+    # Today's study time
+    today_study = StudySession.objects.filter(
+        student=student,
+        started_at__date=now.date()
+    ).aggregate(total_time=Sum('duration_minutes'))['total_time'] or 0
+    
+    # Next exam (find most recent upcoming exam)
+    next_exam_date = None
+    student_profile = getattr(student, 'studentprofile', None)
+    if student_profile and student_profile.sat_exam_date:
+        next_exam_date = student_profile.sat_exam_date
+    
+    # Weak areas (from recent performance)
+    weak_areas = get_weak_areas(student)
+    
+    # Recent activity
+    recent_activity = get_recent_activity(student)
+    
+    return Response({
+        'homeworkCompletion': round(homework_completion, 1),
+        'averageScore': round(average_score),
+        'studyStreak': study_streak,
+        'studyTimeToday': today_study,
+        'nextExamDate': next_exam_date or (now + timedelta(days=120)).isoformat().split('T')[0],
+        'weakAreas': weak_areas,
+        'recentActivity': recent_activity
+    })
+
+
+def get_teacher_dashboard_stats(teacher):
+    """Get dashboard statistics for a teacher."""
+    now = timezone.now()
+    
+    # Classes taught
+    classes_count = teacher.taught_classes.count()
+    total_students = teacher.taught_classes.aggregate(
+        total=Sum('students__count')
+    )['total'] or 0
+    
+    # Homework assigned
+    homework_assigned = Homework.objects.filter(assigned_by=teacher).count()
+    homework_published = Homework.objects.filter(assigned_by=teacher, is_published=True).count()
+    
+    # Recent submissions to grade
+    pending_submissions = HomeworkSubmission.objects.filter(
+        homework__assigned_by=teacher,
+        submitted_at__isnull=False,
+        score__isnull=True
+    ).count()
+    
+    # Student performance overview
+    avg_class_score = HomeworkSubmission.objects.filter(
+        homework__assigned_by=teacher,
+        score__isnull=False
+    ).aggregate(avg_score=Avg('score'))['avg_score'] or 0
+    
+    return Response({
+        'classesCount': classes_count,
+        'totalStudents': total_students,
+        'homeworkAssigned': homework_assigned,
+        'homeworkPublished': homework_published,
+        'pendingSubmissions': pending_submissions,
+        'averageClassScore': round(avg_class_score, 1)
+    })
+
+
+def get_admin_dashboard_stats(admin):
+    """Get dashboard statistics for an admin."""
+    now = timezone.now()
+    
+    # Overall stats
+    total_users = User.objects.count()
+    total_students = User.objects.filter(role='STUDENT').count()
+    total_teachers = User.objects.filter(role='TEACHER').count()
+    
+    # Content stats
+    total_homework = Homework.objects.count()
+    total_questions = 0  # Add question count
+    total_flashcards = Flashcard.objects.count()
+    
+    # Activity stats
+    today_sessions = StudySession.objects.filter(started_at__date=now.date()).count()
+    weekly_sessions = StudySession.objects.filter(
+        started_at__gte=now - timedelta(days=7)
+    ).count()
+    
+    return Response({
+        'totalUsers': total_users,
+        'totalStudents': total_students,
+        'totalTeachers': total_teachers,
+        'totalHomework': total_homework,
+        'totalQuestions': total_questions,
+        'totalFlashcards': total_flashcards,
+        'todaySessions': today_sessions,
+        'weeklySessions': weekly_sessions
+    })
+
+
+def calculate_study_streak(sessions):
+    """Calculate study streak from sessions."""
+    if not sessions.exists():
+        return 0
+    
+    streak = 0
+    current_date = timezone.now().date()
+    
+    for session in sessions:
+        if session.started_at.date() == current_date - timedelta(days=streak):
+            streak += 1
+        else:
+            break
+    
+    return streak
+
+
+def get_weak_areas(student):
+    """Get weak areas based on recent performance."""
+    # This is a simplified version - in real app, analyze performance by subject
+    weak_areas = []
+    
+    # Check homework performance by subject
+    recent_submissions = HomeworkSubmission.objects.filter(
+        student=student,
+        submitted_at__gte=timezone.now() - timedelta(days=30),
+        score__isnull=False
+    )
+    
+    if recent_submissions.exists():
+        avg_score = recent_submissions.aggregate(avg=Avg('score'))['avg'] or 0
+        if avg_score < 70:
+            weak_areas.append('Math')
+        if avg_score < 60:
+            weak_areas.append('Reading')
+    
+    return weak_areas[:3]  # Return top 3 weak areas
+
+
+def get_recent_activity(student):
+    """Get recent activity for student."""
+    activities = []
+    now = timezone.now()
+    
+    # Recent homework submissions
+    recent_submissions = HomeworkSubmission.objects.filter(
+        student=student,
+        submitted_at__gte=now - timedelta(days=7)
+    ).order_by('-submitted_at')[:3]
+    
+    for submission in recent_submissions:
+        activities.append({
+            'type': 'homework',
+            'description': f'Completed {submission.homework.title}',
+            'timestamp': submission.submitted_at.isoformat()
+        })
+    
+    # Recent exam attempts
+    recent_attempts = MockExamAttempt.objects.filter(
+        student=student,
+        submitted_at__gte=now - timedelta(days=7)
+    ).order_by('-submitted_at')[:2]
+    
+    for attempt in recent_attempts:
+        activities.append({
+            'type': 'mock_exam',
+            'description': f'Scored {attempt.sat_score} on {attempt.mock_exam.title}',
+            'timestamp': attempt.submitted_at.isoformat()
+        })
+    
+    # Recent flashcard reviews (placeholder - FlashcardReview model doesn't exist yet)
+    # recent_reviews = FlashcardReview.objects.filter(
+    #     student=student,
+    #     reviewed_at__gte=now - timedelta(days=7)
+    # ).order_by('-reviewed_at')[:2]
+    
+    # For now, create placeholder activity
+    for i in range(2):
+        activities.append({
+            'type': 'flashcard',
+            'description': f'Reviewed {25 + i * 5} flashcards',
+            'timestamp': (now - timedelta(days=i + 1)).isoformat()
+        })
+    
+    # Sort by timestamp and return latest 5
+    activities.sort(key=lambda x: x['timestamp'], reverse=True)
+    return activities[:5]

@@ -14,6 +14,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # API routes
+    path('api/', include('apps.common.urls')),
     path('api/', include('apps.users.urls')),
     path('api/', include('apps.classes.urls')),
     path('api/', include('apps.homework.urls')),

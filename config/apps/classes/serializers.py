@@ -14,16 +14,63 @@ class ClassSerializer(serializers.ModelSerializer):
     is_full = serializers.ReadOnlyField()
     has_ended = serializers.ReadOnlyField()
     teacher_id = serializers.IntegerField(write_only=True)
+    student_count = serializers.SerializerMethodField()
+    class_stats = serializers.SerializerMethodField()
     
     class Meta:
         model = Class
         fields = [
             'id', 'name', 'description', 'teacher', 'teacher_id', 'students',
             'start_date', 'end_date', 'is_active', 'max_students',
-            'current_student_count', 'is_full', 'has_ended',
-            'created_at', 'updated_at'
+            'current_student_count', 'student_count', 'is_full', 'has_ended',
+            'class_stats', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_student_count(self, obj):
+        """Get number of enrolled students."""
+        return obj.students.count()
+    
+    def get_class_stats(self, obj):
+        """Get class statistics for analytics."""
+        from apps.homework.models import HomeworkSubmission
+        from apps.users.models import User
+        from django.db.models import Avg, Sum, Count
+        
+        students = obj.students.all()
+        if not students.exists():
+            return {
+                'average_sat_score': 0,
+                'average_completion_rate': 0,
+                'total_study_time': 0,
+                'active_students': 0
+            }
+        
+        # Get SAT scores
+        sat_scores = [getattr(student, 'studentprofile', None) and 
+                     getattr(student.studentprofile, 'target_sat_score', None) 
+                     for student in students]
+        sat_scores = [score for score in sat_scores if score is not None]
+        avg_sat = sum(sat_scores) / len(sat_scores) if sat_scores else 0
+        
+        # Get homework completion rates
+        homework_submissions = HomeworkSubmission.objects.filter(
+            student__in=students,
+            submitted_at__isnull=False
+        )
+        
+        total_homework = HomeworkSubmission.objects.filter(
+            student__in=students
+        ).count()
+        
+        completion_rate = (homework_submissions.count() / total_homework * 100) if total_homework > 0 else 0
+        
+        return {
+            'average_sat_score': round(avg_sat),
+            'average_completion_rate': round(completion_rate, 1),
+            'total_study_time': 0,  # TODO: Implement study session tracking
+            'active_students': students.count()
+        }
     
     def validate_teacher_id(self, value):
         """Validate that teacher exists and has TEACHER role."""

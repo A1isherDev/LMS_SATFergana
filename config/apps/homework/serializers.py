@@ -21,6 +21,9 @@ class HomeworkSerializer(serializers.ModelSerializer):
         required=False,
         help_text="List of question IDs to include in homework"
     )
+    submission_count = serializers.SerializerMethodField()
+    average_score = serializers.SerializerMethodField()
+    difficulty_level = serializers.CharField(read_only=True)
     
     class Meta:
         model = Homework
@@ -29,9 +32,22 @@ class HomeworkSerializer(serializers.ModelSerializer):
             'assigned_by', 'teacher_name', 'teacher_email', 'due_date',
             'questions', 'question_ids', 'max_score', 'is_published',
             'total_questions', 'is_overdue', 'days_until_due',
+            'submission_count', 'average_score', 'difficulty_level',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_submission_count(self, obj):
+        """Get number of submissions for this homework."""
+        return obj.submissions.filter(submitted_at__isnull=False).count()
+    
+    def get_average_score(self, obj):
+        """Get average score for submitted homework."""
+        from django.db.models import Avg
+        submitted = obj.submissions.filter(submitted_at__isnull=False, score__isnull=False)
+        if submitted.exists():
+            return submitted.aggregate(avg_score=Avg('score'))['avg_score']
+        return 0
     
     def validate_class_obj(self, value):
         """Validate that user is the teacher of the class."""

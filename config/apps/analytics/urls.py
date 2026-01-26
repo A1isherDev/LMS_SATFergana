@@ -7,7 +7,8 @@ from apps.analytics.views import (
     StudentProgressViewSet,
     WeakAreaViewSet,
     StudySessionViewSet,
-    AnalyticsViewSet
+    AnalyticsViewSet,
+    dashboard_stats
 )
 
 
@@ -19,4 +20,5 @@ router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('dashboard/stats/', dashboard_stats, name='dashboard-stats'),
 ]
