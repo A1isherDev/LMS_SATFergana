@@ -28,6 +28,7 @@ interface LeaderboardEntry {
     first_name: string;
     last_name: string;
     email: string;
+    bio?: string;
   };
   points: number;
   rank: number;
@@ -35,6 +36,10 @@ interface LeaderboardEntry {
   trend: 'up' | 'down' | 'stable';
   previous_rank?: number;
   class_name?: string;
+  study_time_minutes?: number;
+  homework_completion_rate?: number;
+  homework_accuracy?: number;
+  mock_exam_count?: number;
 }
 
 interface RankingPeriod {
@@ -50,6 +55,7 @@ export default function RankingsPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<'WEEKLY' | 'MONTHLY' | 'ALL_TIME'>('WEEKLY');
   const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -72,7 +78,7 @@ export default function RankingsPage() {
       type: 'ALL_TIME',
       label: 'All Time',
       description: 'All-time highest achievers',
-      start_date: '2024-01-01T00:00:00Z',
+      start_date: new Date(new Date().getFullYear(), 0, 1).toISOString(), // Start of current year
       end_date: new Date().toISOString()
     }
   ];
@@ -94,25 +100,33 @@ export default function RankingsPage() {
               id: entry.student_id,
               first_name: entry.student_name?.split(' ')[0] || 'Student',
               last_name: entry.student_name?.split(' ').slice(1).join(' ') || '',
-              email: entry.student_email
+              email: entry.student_email,
+              bio: entry.student_bio
             },
             points: entry.total_points,
             rank: entry.rank,
             period_type: selectedPeriod,
             trend: entry.rank_change_display || 'stable',
             previous_rank: entry.rank_change !== 0 ? entry.rank - entry.rank_change : undefined,
-            class_name: entry.class_name || 'General'
+            class_name: entry.class_name || 'General',
+            study_time_minutes: entry.study_time_minutes || 0,
+            homework_completion_rate: entry.homework_completion_rate || 0,
+            homework_accuracy: entry.homework_accuracy || 0,
+            mock_exam_count: entry.mock_exam_count || 0
           })) || [];
           
           setLeaderboard(transformedData);
+          
+          // Extract unique classes from the data
+          const uniqueClasses = [...new Set(transformedData.map((entry: LeaderboardEntry) => entry.class_name).filter(Boolean))] as string[];
+          setAvailableClasses(uniqueClasses);
         } else {
-          const mockLeaderboard = getMockLeaderboard();
-          setLeaderboard(mockLeaderboard);
+          setLeaderboard([]);
+          setAvailableClasses([]);
         }
       } catch (error) {
         console.error('Error fetching rankings:', error);
-        const mockLeaderboard = getMockLeaderboard();
-        setLeaderboard(mockLeaderboard);
+        setLeaderboard([]);
       } finally {
         setIsLoading(false);
       }
@@ -121,127 +135,11 @@ export default function RankingsPage() {
     fetchRankings();
   }, [selectedPeriod]);
 
-  const getMockLeaderboard = (): LeaderboardEntry[] => {
-    return [
-      {
-        student: {
-          id: 1,
-          first_name: 'Emma',
-          last_name: 'Johnson',
-          email: 'emma@example.com'
-        },
-        points: 2450,
-        rank: 1,
-        period_type: selectedPeriod,
-        trend: 'up',
-        previous_rank: 3,
-        class_name: 'SAT Math - Advanced'
-      },
-      {
-        student: {
-          id: 2,
-          first_name: 'Michael',
-          last_name: 'Chen',
-          email: 'michael@example.com'
-        },
-        points: 2380,
-        rank: 2,
-        period_type: selectedPeriod,
-        trend: 'stable',
-        previous_rank: 2,
-        class_name: 'SAT Reading & Writing'
-      },
-      {
-        student: {
-          id: 3,
-          first_name: 'Sarah',
-          last_name: 'Williams',
-          email: 'sarah@example.com'
-        },
-        points: 2290,
-        rank: 3,
-        period_type: selectedPeriod,
-        trend: 'down',
-        previous_rank: 1,
-        class_name: 'SAT Math - Advanced'
-      },
-      {
-        student: {
-          id: 4,
-          first_name: 'David',
-          last_name: 'Brown',
-          email: 'david@example.com'
-        },
-        points: 2150,
-        rank: 4,
-        period_type: selectedPeriod,
-        trend: 'up',
-        previous_rank: 6,
-        class_name: 'SAT Math - Advanced'
-      },
-      {
-        student: {
-          id: 5,
-          first_name: 'Lisa',
-          last_name: 'Anderson',
-          email: 'lisa@example.com'
-        },
-        points: 2080,
-        rank: 5,
-        period_type: selectedPeriod,
-        trend: 'up',
-        previous_rank: 8,
-        class_name: 'SAT Reading & Writing'
-      },
-      {
-        student: {
-          id: 6,
-          first_name: 'James',
-          last_name: 'Taylor',
-          email: 'james@example.com'
-        },
-        points: 1950,
-        rank: 6,
-        period_type: selectedPeriod,
-        trend: 'stable',
-        previous_rank: 6,
-        class_name: 'SAT Math - Advanced'
-      },
-      {
-        student: {
-          id: 7,
-          first_name: 'Olivia',
-          last_name: 'Martinez',
-          email: 'olivia@example.com'
-        },
-        points: 1820,
-        rank: 7,
-        period_type: selectedPeriod,
-        trend: 'down',
-        previous_rank: 5,
-        class_name: 'SAT Reading & Writing'
-      },
-      {
-        student: {
-          id: 8,
-          first_name: 'Daniel',
-          last_name: 'Wilson',
-          email: 'daniel@example.com'
-        },
-        points: 1750,
-        rank: 8,
-        period_type: selectedPeriod,
-        trend: 'stable',
-        previous_rank: 8,
-        class_name: 'SAT Math - Advanced'
-      }
-    ];
-  };
-
   const filteredLeaderboard = leaderboard.filter(entry =>
     entry.student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     entry.student.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (entry.class_name && entry.class_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    (entry.class_name && entry.class_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (entry.class_name && entry.class_name === selectedClass)
   );
 
   const getTrendIcon = (trend: string) => {
@@ -383,8 +281,11 @@ export default function RankingsPage() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Classes</option>
-              <option value="SAT Math - Advanced">SAT Math - Advanced</option>
-              <option value="SAT Reading & Writing">SAT Reading & Writing</option>
+              {availableClasses.map((className) => (
+                <option key={className} value={className}>
+                  {className}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -460,6 +361,16 @@ export default function RankingsPage() {
                         {entry.class_name && (
                           <p className="text-sm text-gray-500">{entry.class_name}</p>
                         )}
+                        {entry.student.bio && (
+                          <p className="text-xs text-gray-400 italic max-w-xs truncate" title={entry.student.bio}>
+                            "{entry.student.bio}"
+                          </p>
+                        )}
+                        {entry.study_time_minutes && entry.study_time_minutes > 0 && (
+                          <p className="text-xs text-gray-400">
+                            📚 {Math.floor(entry.study_time_minutes / 60)}h {entry.study_time_minutes % 60}m study time
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -509,7 +420,7 @@ export default function RankingsPage() {
           )}
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -539,6 +450,26 @@ export default function RankingsPage() {
                   </p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-purple-600" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Study Time</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {leaderboard.length > 0 ? 
+                      (() => {
+                        const totalMinutes = leaderboard.reduce((sum, e) => sum + (e.study_time_minutes || 0), 0);
+                        const hours = Math.floor(totalMinutes / 60);
+                        const minutes = totalMinutes % 60;
+                        return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+                      })() : '0m'
+                    }
+                  </p>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                  <span className="text-lg">📚</span>
+                </div>
               </div>
             </div>
             <div className="bg-white rounded-lg shadow p-6">

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AuthGuard from '@/components/AuthGuard';
-import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '../../components/AuthGuard';
+import DashboardLayout from '../../components/DashboardLayout';
 import { 
   Clock, 
   Target, 
@@ -16,9 +16,20 @@ import {
   CheckCircle,
   Play
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { getDaysUntilExam, getExamUrgency, getStreakMessage, getStreakColor, getSatScoreColor, formatPercentage, formatDuration } from '@/utils/helpers';
-import { getFutureDate, getPastDate } from '@/utils/dateFixer';
+import { useAuth } from '../../contexts/AuthContext';
+import { usersApi, analyticsApi } from '../../utils/api';
+import { getDaysUntilExam, getExamUrgency, getStreakMessage, getStreakColor, getSatScoreColor, formatPercentage, formatDuration } from '../../utils/helpers';
+import { getFutureDate, getPastDate } from '../../utils/dateFixer';
+import ExamCountdown from '../../components/ExamCountdown';
+import StudyStreak from '../../components/StudyStreak';
+import StudySessionTracker from '../../components/StudySessionTracker';
+
+interface StudentProfile {
+  sat_exam_date: string | null;
+  weak_areas: { [key: string]: number };
+  target_sat_score: number;
+  estimated_current_score: number;
+}
 
 interface DashboardStats {
   homeworkCompletion: number;
@@ -39,49 +50,69 @@ export default function DashboardPage() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
 
   useEffect(() => {
-    // Fetch real dashboard data from API
-    const fetchDashboardData = async () => {
+    // Fetch student profile and dashboard data
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/analytics/dashboard/stats/', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data);
-        } else {
-          // Fallback to mock data if API fails
-          const mockStats: DashboardStats = {
-            homeworkCompletion: 85,
-            averageScore: 1250,
-            studyStreak: 12,
-            studyTimeToday: 45,
-            nextExamDate: getFutureDate(120),
-            weakAreas: ['Algebra', 'Geometry'],
-            recentActivity: [
-              {
-                type: 'homework',
-                description: 'Completed Math Homework #3',
-                timestamp: `${getPastDate(1)}T10:30:00Z`
-              },
-              {
-                type: 'mock_exam',
-                description: 'Scored 1320 on Practice Test',
-                timestamp: `${getPastDate(1)}T09:15:00Z`
-              },
-              {
-                type: 'flashcard',
-                description: 'Reviewed 50 vocabulary cards',
-                timestamp: `${getPastDate(2)}T20:45:00Z`
-              }
-            ]
-          };
-          setStats(mockStats);
+        // Fetch student profile first
+        let profileData: StudentProfile | null = null;
+        if (user?.role === 'STUDENT') {
+          try {
+            profileData = await usersApi.getStudentProfile() as StudentProfile;
+            setStudentProfile(profileData);
+          } catch (profileError) {
+            console.log('Student profile not found or error:', profileError);
+          }
+        }
+
+        // Fetch dashboard stats using proper API client
+        try {
+          const data = await analyticsApi.getDashboardStats() as any;
+          setStats({
+            homeworkCompletion: data.homeworkCompletion || 0,
+            averageScore: data.averageScore || 0,
+            studyStreak: data.studyStreak || 0,
+            studyTimeToday: data.studyTimeToday || 0,
+            nextExamDate: data.nextExamDate || profileData?.sat_exam_date || getFutureDate(120),
+            weakAreas: data.weakAreas || (profileData?.weak_areas ? Object.keys(profileData.weak_areas) : ['Algebra', 'Geometry']),
+            recentActivity: data.recentActivity || []
+          });
+        } catch (apiError) {
+          console.log('Dashboard API failed, calculating real streak:', apiError);
+          
+          // Calculate real streak from study sessions if API fails
+          try {
+            const sessionsResponse = await analyticsApi.getMySessions();
+            const sessions = (sessionsResponse as any).results || sessionsResponse;
+            
+            // Calculate streak from sessions
+            const streak = calculateStreakFromSessions(sessions as any[]);
+            const todayStudyTime = calculateTodayStudyTime(sessions as any[]);
+            
+            setStats({
+              homeworkCompletion: 0, // Will be updated when API works
+              averageScore: 0, // Will be updated when API works
+              studyStreak: streak,
+              studyTimeToday: todayStudyTime,
+              nextExamDate: profileData?.sat_exam_date || getFutureDate(120),
+              weakAreas: profileData?.weak_areas ? Object.keys(profileData.weak_areas) : ['Algebra', 'Geometry'],
+              recentActivity: []
+            });
+          } catch (sessionError) {
+            console.log('Session API also failed, using zero streak:', sessionError);
+            // Final fallback - start from zero
+            setStats({
+              homeworkCompletion: 0,
+              averageScore: 0,
+              studyStreak: 0,
+              studyTimeToday: 0,
+              nextExamDate: profileData?.sat_exam_date || getFutureDate(120),
+              weakAreas: profileData?.weak_areas ? Object.keys(profileData.weak_areas) : ['Algebra', 'Geometry'],
+              recentActivity: []
+            });
+          }
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -91,15 +122,15 @@ export default function DashboardPage() {
           averageScore: 1250,
           studyStreak: 12,
           studyTimeToday: 45,
-          nextExamDate: getFutureDate(120),
-          weakAreas: ['Algebra', 'Geometry'],
+          nextExamDate: studentProfile?.sat_exam_date || getFutureDate(120),
+          weakAreas: studentProfile?.weak_areas ? Object.keys(studentProfile.weak_areas) : ['Algebra', 'Geometry'],
           recentActivity: [
             {
               type: 'homework',
               description: 'Completed Math Homework #3',
               timestamp: `${getPastDate(1)}T10:30:00Z`
             },
-              {
+            {
               type: 'mock_exam',
               description: 'Scored 1320 on Practice Test',
               timestamp: `${getPastDate(1)}T09:15:00Z`
@@ -117,8 +148,10 @@ export default function DashboardPage() {
       }
     };
 
-    fetchDashboardData();
-  }, []);
+    if (user) {
+      fetchData();
+    }
+  }, [user, studentProfile?.sat_exam_date]);
 
   const daysUntilExam = stats ? getDaysUntilExam(stats.nextExamDate) : 0;
   const examUrgency = getExamUrgency(daysUntilExam);
@@ -139,8 +172,47 @@ export default function DashboardPage() {
     router.push('/analytics');
   };
 
+  const handleSessionUpdate = () => {
+    // Refresh dashboard data when session ends
+    window.location.reload();
+  };
+
   const handleWeakAreaPractice = (area: string) => {
     router.push(`/questionbank?subject=${encodeURIComponent(area)}`);
+  };
+
+  // Helper functions to calculate streak from sessions
+  const calculateStreakFromSessions = (sessions: any[]): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const sessionDates = new Set(
+      sessions
+        .filter(s => s.ended_at)
+        .map(s => new Date(s.ended_at).toDateString())
+    );
+    
+    let streak = 0;
+    let currentDate = new Date(today);
+    
+    while (sessionDates.has(currentDate.toDateString())) {
+      streak++;
+      currentDate.setDate(currentDate.getDate() - 1);
+    }
+    
+    return streak;
+  };
+
+  const calculateTodayStudyTime = (sessions: any[]): number => {
+    if (!sessions || sessions.length === 0) return 0;
+    
+    const today = new Date().toDateString();
+    
+    return sessions
+      .filter(s => s.ended_at && new Date(s.ended_at).toDateString() === today)
+      .reduce((total, s) => total + (s.duration_minutes || 0), 0);
   };
 
   const getActivityIcon = (activityType: string) => {
@@ -183,33 +255,18 @@ export default function DashboardPage() {
         <div className="space-y-8">
           {/* Header Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Days Until Exam */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Days Until Exam</p>
-                  <p className={`text-2xl font-bold ${examUrgency.color}`}>
-                    {daysUntilExam}
-                  </p>
-                  <p className="text-xs text-gray-500">{examUrgency.level} Priority</p>
-                </div>
-                <Calendar className="h-8 w-8 text-gray-400" />
-              </div>
-            </div>
+            {/* Dynamic Exam Countdown */}
+            <ExamCountdown 
+              examDate={studentProfile?.sat_exam_date || null} 
+              className="bg-white rounded-lg shadow p-6"
+            />
 
-            {/* Study Streak */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Study Streak</p>
-                  <p className={`text-2xl font-bold ${getStreakColor(stats.studyStreak)}`}>
-                    {stats.studyStreak} days
-                  </p>
-                  <p className="text-xs text-gray-500">{getStreakMessage(stats.studyStreak)}</p>
-                </div>
-                <Award className="h-8 w-8 text-gray-400" />
-              </div>
-            </div>
+            {/* Enhanced Study Streak */}
+            <StudyStreak 
+              streakDays={stats.studyStreak}
+              studyTimeToday={stats.studyTimeToday}
+              className="col-span-1"
+            />
 
             {/* Average SAT Score */}
             <div className="bg-white rounded-lg shadow p-6">
@@ -312,6 +369,12 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
+
+          {/* Study Session Tracker */}
+          <StudySessionTracker 
+            onSessionUpdate={handleSessionUpdate}
+            className="col-span-1"
+          />
 
           {/* Quick Actions */}
           <div className="bg-white rounded-lg shadow p-6">

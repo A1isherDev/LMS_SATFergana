@@ -208,6 +208,142 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=False, methods=['post'])
+    def start_study_session(self, request):
+        """Start a new study session."""
+        try:
+            session_type = request.data.get('session_type', 'practice')
+            
+            # Check if there's already an active session
+            active_session = StudySession.objects.filter(
+                student=request.user,
+                ended_at__isnull=True
+            ).first()
+            
+            if active_session:
+                return Response({
+                    'detail': 'You already have an active study session',
+                    'session_id': active_session.id,
+                    'started_at': active_session.started_at
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Create new study session
+            session = StudySession.objects.create(
+                student=request.user,
+                session_type=session_type,
+                started_at=timezone.now()
+            )
+            
+            return Response({
+                'session_id': session.id,
+                'session_type': session.session_type,
+                'started_at': session.started_at
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {"detail": f"Failed to start study session: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def end_study_session(self, request):
+        """End the current study session."""
+        try:
+            session_id = request.data.get('session_id')
+            
+            if session_id:
+                # End specific session
+                session = StudySession.objects.filter(
+                    id=session_id,
+                    student=request.user,
+                    ended_at__isnull=True
+                ).first()
+            else:
+                # End any active session
+                session = StudySession.objects.filter(
+                    student=request.user,
+                    ended_at__isnull=True
+                ).first()
+            
+            if not session:
+                return Response(
+                    {"detail": "No active study session found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Update session
+            session.ended_at = timezone.now()
+            session.duration_minutes = int((session.ended_at - session.started_at).total_seconds() / 60)
+            
+            # Update study progress for today
+            today = timezone.now().date()
+            progress, created = StudentProgress.objects.get_or_create(
+                student=request.user,
+                date=today,
+                defaults={
+                    'study_time_minutes': session.duration_minutes,
+                    'streak_days': 1
+                }
+            )
+            
+            if not created:
+                progress.study_time_minutes += session.duration_minutes
+                progress.save()
+            
+            session.save()
+            
+            # Calculate updated streak
+            updated_streak = calculate_study_streak(
+                StudySession.objects.filter(
+                    student=request.user,
+                    ended_at__isnull=False
+                ).order_by('-started_at')
+            )
+            
+            return Response({
+                'session_id': session.id,
+                'duration_minutes': session.duration_minutes,
+                'session_type': session.session_type,
+                'updated_streak': updated_streak
+            })
+            
+        except Exception as e:
+            return Response(
+                {"detail": f"Failed to end study session: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def active_session(self, request):
+        """Get current active study session."""
+        try:
+            active_session = StudySession.objects.filter(
+                student=request.user,
+                ended_at__isnull=True
+            ).first()
+            
+            if not active_session:
+                return Response({'active_session': None})
+            
+            # Calculate current duration
+            current_duration = int((timezone.now() - active_session.started_at).total_seconds() / 60)
+            
+            return Response({
+                'active_session': {
+                    'id': active_session.id,
+                    'session_type': active_session.session_type,
+                    'started_at': active_session.started_at,
+                    'current_duration_minutes': current_duration
+                }
+            })
+            
+        except Exception as e:
+            return Response(
+                {"detail": f"Failed to get active session: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     @staticmethod
     def _get_improvement_suggestion(weak_area):
         """Get improvement suggestion for a weak area."""
@@ -809,8 +945,11 @@ def calculate_study_streak(sessions):
     streak = 0
     current_date = timezone.now().date()
     
-    for session in sessions:
-        if session.started_at.date() == current_date - timedelta(days=streak):
+    # Filter sessions that have ended (completed sessions)
+    completed_sessions = sessions.filter(ended_at__isnull=False)
+    
+    for session in completed_sessions:
+        if session.ended_at.date() == current_date - timedelta(days=streak):
             streak += 1
         else:
             break

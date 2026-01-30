@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AuthGuard from '@/components/AuthGuard';
-import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '../../components/AuthGuard';
+import DashboardLayout from '../../components/DashboardLayout';
 import { 
   User, 
   Mail, 
@@ -15,8 +15,16 @@ import {
   Save,
   Camera
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { formatDate } from '@/utils/helpers';
+import { useAuth } from '../../contexts/AuthContext';
+import { usersApi } from '../../utils/api';
+import { formatDate } from '../../utils/helpers';
+
+interface StudentProfile {
+  sat_exam_date: string | null;
+  weak_areas: { [key: string]: number };
+  target_sat_score: number;
+  estimated_current_score: number;
+}
 
 interface ProfileData {
   first_name: string;
@@ -26,6 +34,7 @@ interface ProfileData {
   date_of_birth: string;
   grade_level: number;
   target_sat_score: number;
+  sat_exam_date: string | null;
   bio: string;
 }
 
@@ -34,6 +43,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [profileData, setProfileData] = useState<ProfileData>({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -42,8 +52,30 @@ export default function ProfilePage() {
     date_of_birth: user?.date_of_birth || '',
     grade_level: user?.grade_level || 11,
     target_sat_score: user?.target_sat_score || 1400,
+    sat_exam_date: null,
     bio: user?.bio || ''
   });
+
+  useEffect(() => {
+    // Fetch student profile if user is a student
+    const fetchStudentProfile = async () => {
+      if (user?.role === 'STUDENT') {
+        try {
+          const profile = await usersApi.getStudentProfile() as StudentProfile;
+          setStudentProfile(profile);
+          setProfileData(prev => ({
+            ...prev,
+            sat_exam_date: profile.sat_exam_date,
+            target_sat_score: profile.target_sat_score
+          }));
+        } catch (error) {
+          console.log('Student profile not found:', error);
+        }
+      }
+    };
+
+    fetchStudentProfile();
+  }, [user]);
 
   const handleInputChange = (field: keyof ProfileData, value: string | number) => {
     setProfileData(prev => ({
@@ -55,8 +87,30 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // TODO: Update profile via API
-      console.log('Saving profile:', profileData);
+      // Update basic user profile
+      await usersApi.updateProfile({
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        phone_number: profileData.phone_number,
+        date_of_birth: profileData.date_of_birth,
+        grade_level: profileData.grade_level,
+        bio: profileData.bio
+      });
+      
+      // Update student profile if user is a student
+      if (user?.role === 'STUDENT') {
+        // Update exam date if it changed
+        if (profileData.sat_exam_date !== studentProfile?.sat_exam_date) {
+          await usersApi.updateExamDate(profileData.sat_exam_date || '');
+        }
+        
+        // Update other student profile data
+        await usersApi.updateStudentProfile({
+          target_sat_score: profileData.target_sat_score,
+          estimated_current_score: studentProfile?.estimated_current_score || 1000,
+          weak_areas: studentProfile?.weak_areas || {}
+        });
+      }
       
       // Update local user context
       if (user) {
@@ -66,11 +120,19 @@ export default function ProfilePage() {
         });
       }
       
+      // Refresh student profile
+      if (user?.role === 'STUDENT') {
+        const updatedProfile = await usersApi.getStudentProfile() as StudentProfile;
+        setStudentProfile(updatedProfile);
+      }
+      
       setIsEditing(false);
-      alert('Profile updated successfully!');
+      // Show success message (you could replace this with a toast notification)
+      console.log('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Error updating profile. Please try again.');
+      // Show error message (you could replace this with a toast notification)
+      console.error('Error updating profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +148,8 @@ export default function ProfilePage() {
         phone_number: user.phone_number || '',
         date_of_birth: user.date_of_birth || '',
         grade_level: user.grade_level || 11,
-        target_sat_score: user.target_sat_score || 1400,
+        target_sat_score: studentProfile?.target_sat_score || user.target_sat_score || 1400,
+        sat_exam_date: studentProfile?.sat_exam_date || null,
         bio: user.bio || ''
       });
     }
@@ -296,6 +359,36 @@ export default function ProfilePage() {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Academic Information</h3>
                     <div className="space-y-4">
+                      {user?.role === 'STUDENT' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            SAT Exam Date
+                          </label>
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                            {isEditing ? (
+                              <input
+                                type="datetime-local"
+                                value={profileData.sat_exam_date ? new Date(profileData.sat_exam_date).toISOString().slice(0, 16) : ''}
+                                onChange={(e) => handleInputChange('sat_exam_date', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            ) : (
+                              <p className="text-gray-900">
+                                {studentProfile?.sat_exam_date 
+                                  ? new Date(studentProfile.sat_exam_date).toLocaleDateString() + ' at ' + new Date(studentProfile.sat_exam_date).toLocaleTimeString()
+                                  : 'Not set'
+                                }
+                              </p>
+                            )}
+                          </div>
+                          {!isEditing && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              This date is used for the countdown timer on your dashboard
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Target SAT Score
@@ -312,7 +405,7 @@ export default function ProfilePage() {
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                           ) : (
-                            <p className="text-gray-900">{user.target_sat_score || 'Not set'}</p>
+                            <p className="text-gray-900">{studentProfile?.target_sat_score || user.target_sat_score || 'Not set'}</p>
                           )}
                         </div>
                       </div>

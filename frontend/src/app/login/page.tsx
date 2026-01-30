@@ -7,9 +7,9 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Eye, EyeOff, BookOpen } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { handleApiError } from '@/utils/api';
-import { cn } from '@/utils/helpers';
+import { useAuth } from '../../contexts/AuthContext';
+import { handleApiError } from '../../utils/api';
+import { cn } from '../../utils/helpers';
 
 const loginSchema = yup.object().shape({
   email: yup

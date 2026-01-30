@@ -59,11 +59,20 @@ class ClassViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
     
     def perform_create(self, serializer):
-        """Set teacher to current user if not provided."""
+        """Set teacher to current user if not provided and set default dates."""
+        from datetime import date, timedelta
+        
+        # Set default dates if not provided
+        validated_data = serializer.validated_data
+        if 'start_date' not in validated_data:
+            validated_data['start_date'] = date.today()
+        if 'end_date' not in validated_data:
+            validated_data['end_date'] = date.today() + timedelta(days=180)  # 6 months default
+            
         if self.request.user.is_teacher:
-            serializer.save(teacher=self.request.user)
+            serializer.save(teacher=self.request.user, **validated_data)
         else:
-            serializer.save()
+            serializer.save(**validated_data)
     
     @action(detail=True, methods=['post'])
     def enroll_students(self, request, pk=None):

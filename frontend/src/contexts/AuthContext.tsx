@@ -1,8 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, AuthResponse } from '@/types';
-import { authApi, usersApi, handleApiError, healthCheck } from '@/utils/api';
+import { User, AuthResponse } from '../types';
+import { authApi, usersApi, handleApiError, healthCheck } from '../utils/api';
 
 interface AuthContextType {
   user: User | null;
@@ -83,11 +83,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       const response = await authApi.login(email, password);
-      const { access, refresh, user: userData } = response;
+      const { tokens, user: userData } = response;
       
       // Store tokens
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('access_token', tokens.access);
+      localStorage.setItem('refresh_token', tokens.refresh);
       
       // Set user
       setUser(userData);
@@ -106,11 +106,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }) => {
     try {
       const response = await authApi.register(userData);
-      const { access, refresh, user: registeredUser } = response;
+      const { tokens, user: registeredUser } = response;
       
       // Store tokens
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('access_token', tokens.access);
+      localStorage.setItem('refresh_token', tokens.refresh);
       
       // Set user
       setUser(registeredUser);
@@ -144,8 +144,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(userData as User);
     } catch (error) {
       console.error('Failed to refresh user data:', error);
-      // If refresh fails, user might need to re-authenticate
-      logout();
+      // Don't automatically logout - let the user continue with existing session
+      // Only logout if it's a clear authentication error (401)
+      if (error && typeof error === 'object' && 'response' in error && 
+          (error as any).response?.status === 401) {
+        logout();
+      }
     }
   };
 

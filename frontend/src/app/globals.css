@@ -24,3 +24,40 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Force text colors to be visible */
+* {
+  color: inherit;
+}
+
+/* Ensure all text is visible on light backgrounds */
+.text-white {
+  color: #ffffff !important;
+}
+
+.text-gray-50 {
+  color: #f9fafb !important;
+}
+
+.text-gray-100 {
+  color: #f3f4f6 !important;
+}
+
+.text-gray-200 {
+  color: #e5e7eb !important;
+}
+
+/* Make sure important text is always visible */
+h1, h2, h3, h4, h5, h6 {
+  color: #111827 !important;
+}
+
+p, span, div {
+  color: #374151 !important;
+}
+
+/* Override for specific cases where we want white text */
+.bg-blue-600 .text-white,
+.bg-gray-900 .text-green-400 {
+  color: inherit !important;
+}

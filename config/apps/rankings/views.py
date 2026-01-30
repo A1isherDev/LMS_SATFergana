@@ -4,7 +4,7 @@ Views for the rankings app.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q, Count, Avg, F
+from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.rankings.models import Ranking
@@ -18,6 +18,20 @@ from apps.rankings.serializers import (
     RankingUpdateSerializer
 )
 from apps.common.permissions import IsTeacherOrAdmin, IsStudent
+
+
+def extract_bio_from_name(first_name):
+    """Extract bio from first_name field if it contains a bio"""
+    if '|' in first_name:
+        return first_name.split('|', 1)[1]
+    return None
+
+
+def extract_clean_name(first_name):
+    """Extract clean name from first_name field (remove bio if present)"""
+    if '|' in first_name:
+        return first_name.split('|', 1)[0]
+    return first_name
 
 
 class RankingViewSet(viewsets.ReadOnlyModelViewSet):
@@ -87,10 +101,25 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
         # Build leaderboard entries
         leaderboard_entries = []
         for ranking in rankings:
+            # Get study time from analytics for the period
+            from apps.analytics.models import StudentProgress
+            try:
+                study_progress = StudentProgress.objects.filter(
+                    student=ranking.student,
+                    date__gte=period_start.date() if hasattr(period_start, 'date') else period_start,
+                    date__lte=period_end.date() if hasattr(period_end, 'date') else period_end
+                ).aggregate(
+                    total_minutes=Sum('study_time_minutes')
+                )
+                study_time_minutes = study_progress['total_minutes'] or 0
+            except:
+                study_time_minutes = 0
+            
             leaderboard_entries.append({
                 'student_id': ranking.student.id,
-                'student_name': ranking.student.get_full_name() or ranking.student.email,
+                'student_name': extract_clean_name(ranking.student.first_name) + ' ' + ranking.student.last_name,
                 'student_email': ranking.student.email,
+                'student_bio': extract_bio_from_name(ranking.student.first_name),
                 'rank': ranking.rank,
                 'rank_change': ranking.rank_change,
                 'rank_change_display': ranking.rank_change_display,
@@ -99,7 +128,8 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
                 'homework_accuracy': ranking.homework_accuracy,
                 'average_sat_score': ranking.average_sat_score,
                 'highest_sat_score': ranking.highest_sat_score,
-                'mock_exam_count': len(ranking.mock_exam_scores)
+                'mock_exam_count': len(ranking.mock_exam_scores),
+                'study_time_minutes': study_time_minutes
             })
         
         leaderboard_data = {

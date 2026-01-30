@@ -42,12 +42,12 @@ export const API_ENDPOINTS = {
   
   // Mock Exams
   MOCK_EXAMS: {
-    LIST: '/mockexams/',
-    DETAIL: (id: string) => `/mockexams/${id}/`,
-    ATTEMPTS: '/mockexams/attempts/',
-    MY_ATTEMPTS: '/mockexams/my_attempts/',
-    START: (id: string) => `/mockexams/${id}/start/`,
-    SUBMIT: (id: string) => `/mockexams/${id}/submit/`,
+    LIST: '/mock-exams/',
+    DETAIL: (id: string) => `/mock-exams/${id}/`,
+    ATTEMPTS: '/mock-exam-attempts/',
+    MY_ATTEMPTS: '/mock-exam-attempts/',
+    START: (id: string) => `/mock-exams/${id}/start/`,
+    SUBMIT: (id: string) => `/mock-exams/${id}/submit/`,
   },
   
   // Flashcards
@@ -62,11 +62,12 @@ export const API_ENDPOINTS = {
   
   // Rankings
   RANKINGS: {
-    WEEKLY: '/rankings/weekly/',
-    MONTHLY: '/rankings/monthly/',
-    ALL_TIME: '/rankings/all_time/',
+    LEADERBOARD: '/rankings/leaderboard/',
     MY_RANKINGS: '/rankings/my_rankings/',
-    CLASS_RANKINGS: (id: string) => `/rankings/class/${id}/`,
+    STATS: '/rankings/stats/',
+    UPDATE_RANKINGS: '/rankings/update_rankings/',
+    HISTORY: '/rankings/history/',
+    TOP_PERFORMERS: '/rankings/top_performers/',
   },
   
   // Analytics

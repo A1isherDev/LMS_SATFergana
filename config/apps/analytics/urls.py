@@ -16,9 +16,11 @@ router = DefaultRouter()
 router.register(r'student-progress', StudentProgressViewSet, basename='student-progress')
 router.register(r'weak-areas', WeakAreaViewSet, basename='weak-areas')
 router.register(r'study-sessions', StudySessionViewSet, basename='study-sessions')
-router.register(r'analytics', AnalyticsViewSet, basename='analytics')
+# AnalyticsViewSet is a GenericViewSet with custom actions, no need to register with router
 
 urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/stats/', dashboard_stats, name='dashboard-stats'),
+    # AnalyticsViewSet actions (since it's a GenericViewSet)
+    path('student_summary/', AnalyticsViewSet.as_view({'get': 'student_summary'}), name='analytics-student-summary'),
 ]

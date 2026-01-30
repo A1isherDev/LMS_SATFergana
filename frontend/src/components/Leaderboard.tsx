@@ -5,14 +5,19 @@ import { Trophy, Medal, Crown, Award } from 'lucide-react';
 
 interface LeaderboardEntry {
   rank: number;
-  student: {
-    first_name: string;
-    last_name: string;
-    email: string;
-  };
-  points: number;
-  trend: 'up' | 'down' | 'stable';
-  previous_rank?: number;
+  student_id: number;
+  student_name: string;
+  student_email: string;
+  student_bio?: string | null;
+  rank_change: number;
+  rank_change_display: string;
+  total_points: number;
+  homework_completion_rate: number;
+  homework_accuracy: number;
+  average_sat_score: number;
+  highest_sat_score: number;
+  mock_exam_count: number;
+  study_time_minutes: number;
   isCurrentUser?: boolean;
 }
 
@@ -78,7 +83,7 @@ export default function Leaderboard({
       <div className="divide-y divide-gray-200">
         {displayEntries.map((entry) => (
           <div
-            key={`${entry.student.email}-${entry.rank}`}
+            key={`${entry.student_email}-${entry.rank}`}
             className={`px-6 py-4 hover:bg-gray-50 transition-colors ${
               entry.isCurrentUser ? 'bg-blue-50' : ''
             }`}
@@ -91,11 +96,14 @@ export default function Leaderboard({
                 </div>
 
                 {/* Student Info */}
-                <div className={compact ? 'flex-1' : ''}>
+                  <div className={compact ? 'flex-1' : ''}>
                   <div className="flex items-center space-x-2">
                     <p className={`font-medium text-gray-900 ${compact ? 'text-sm' : ''}`}>
-                      {entry.student.first_name} {entry.student.last_name}
+                      {entry.student_name}
                     </p>
+                    {entry.student_bio && (
+                      <p className="text-sm text-gray-500 italic">({entry.student_bio})</p>
+                    )}
                     {entry.isCurrentUser && (
                       <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                         You
@@ -103,21 +111,27 @@ export default function Leaderboard({
                     )}
                   </div>
                   {!compact && (
-                    <p className="text-sm text-gray-500">{entry.student.email}</p>
+                    <p className="text-sm text-gray-500">{entry.student_email}</p>
                   )}
                 </div>
               </div>
 
               {/* Stats */}
               <div className="flex items-center space-x-4">
-                {showTrend && entry.previous_rank && (
+                {showTrend && (
                   <div className="text-center">
                     <div className="flex items-center space-x-1">
-                      {getTrendIcon(entry.trend)}
+                      <span className={`text-xs ${
+                        entry.rank_change > 0 ? 'text-green-500' :
+                        entry.rank_change < 0 ? 'text-red-500' :
+                        'text-gray-500'
+                      }`}>
+                        {entry.rank_change > 0 ? '↑' :
+                         entry.rank_change < 0 ? '↓' :
+                         '—'}
+                      </span>
                       <span className="text-xs text-gray-500">
-                        {entry.trend === 'stable' ? '—' :
-                         entry.trend === 'up' ? `+${entry.previous_rank - entry.rank}` :
-                         `-${entry.rank - entry.previous_rank}`}
+                        {entry.rank_change_display}
                       </span>
                     </div>
                   </div>
@@ -125,7 +139,7 @@ export default function Leaderboard({
 
                 <div className="text-right">
                   <p className={`font-bold text-gray-900 ${compact ? 'text-sm' : ''}`}>
-                    {entry.points}
+                    {entry.total_points}
                   </p>
                   <p className={`text-xs text-gray-500 ${compact ? 'hidden' : ''}`}>points</p>
                 </div>

@@ -268,9 +268,11 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  access: string;
-  refresh: string;
   user: User;
+  tokens: {
+    access: string;
+    refresh: string;
+  };
 }
 
 // Form Types

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AuthGuard from '@/components/AuthGuard';
-import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '../../../components/AuthGuard';
+import DashboardLayout from '../../../components/DashboardLayout';
 import { 
   ArrowLeft,
   Save,
@@ -11,7 +11,8 @@ import {
   Calendar,
   BookOpen
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { classesApi } from '../../../utils/api';
 
 interface ClassFormData {
   name: string;
@@ -45,25 +46,13 @@ export default function CreateClassPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/classes/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        alert('Class created successfully!');
-        router.push('/classes');
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.detail || 'Failed to create class'}`);
-      }
-    } catch (error) {
+      await classesApi.createClass(formData);
+      console.log('Class created successfully!');
+      router.push('/classes');
+    } catch (error: any) {
       console.error('Error creating class:', error);
-      alert('Error creating class. Please try again.');
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to create class';
+      console.error(`Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

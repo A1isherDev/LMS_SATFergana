@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AuthGuard from '@/components/AuthGuard';
-import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '../../components/AuthGuard';
+import DashboardLayout from '../../components/DashboardLayout';
 import { 
   Users, 
   Calendar, 
@@ -15,8 +15,9 @@ import {
   TrendingUp,
   Clock
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { formatDate, getSubjectColor } from '@/utils/helpers';
+import { useAuth } from '../../contexts/AuthContext';
+import { formatDate, getSubjectColor } from '../../utils/helpers';
+import { classesApi } from '../../utils/api';
 
 interface Teacher {
   id: number;
@@ -51,7 +52,6 @@ export default function ClassesPage() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const handleCreateClass = () => {
     router.push('/classes/create');
@@ -62,87 +62,38 @@ export default function ClassesPage() {
   };
 
   const handleClassAnalytics = (classId: number) => {
-    console.log('View analytics for class', classId);
-    alert('Class analytics feature coming soon!');
+    router.push(`/analytics?class_id=${classId}`);
   };
 
   const handleFilter = () => {
-    console.log('Filter clicked');
-    alert('Filter feature coming soon!');
+    // TODO: Implement advanced filtering
+    console.log('Filter clicked - implement advanced filters');
   };
 
   useEffect(() => {
-    // TODO: Fetch actual classes from API
-    const mockClasses: Class[] = user?.role === 'TEACHER' ? [
-      {
-        id: 1,
-        name: 'SAT Math - Advanced',
-        description: 'Advanced mathematics preparation for SAT with focus on algebra and geometry',
-        teacher: {
-          id: 1,
-          first_name: 'John',
-          last_name: 'Smith',
-          email: 'john.smith@satfergana.com'
-        },
-        students: [
-          { id: 2, first_name: 'Alice', last_name: 'Johnson', email: 'alice@example.com' },
-          { id: 3, first_name: 'Bob', last_name: 'Wilson', email: 'bob@example.com' },
-          { id: 4, first_name: 'Carol', last_name: 'Davis', email: 'carol@example.com' },
-        ],
-        is_active: true,
-        created_at: '2024-01-15T10:00:00Z',
-        homework_count: 12,
-        upcoming_homework: 3,
-        average_score: 1250
-      },
-      {
-        id: 2,
-        name: 'SAT Reading & Writing',
-        description: 'Comprehensive reading and writing skills development for SAT success',
-        teacher: {
-          id: 1,
-          first_name: 'John',
-          last_name: 'Smith',
-          email: 'john.smith@satfergana.com'
-        },
-        students: [
-          { id: 5, first_name: 'David', last_name: 'Brown', email: 'david@example.com' },
-          { id: 6, first_name: 'Emma', last_name: 'Miller', email: 'emma@example.com' },
-        ],
-        is_active: true,
-        created_at: '2024-01-10T14:30:00Z',
-        homework_count: 8,
-        upcoming_homework: 2,
-        average_score: 1180
+    const fetchClasses = async () => {
+      try {
+        if (user?.role === 'TEACHER') {
+          const response = await classesApi.getClasses() as any;
+          setClasses(response.results || response);
+        } else if (user?.role === 'STUDENT') {
+          const response = await classesApi.getStudentClasses() as any;
+          setClasses(response.results || response);
+        }
+      } catch (error) {
+        console.error('Failed to fetch classes:', error);
+        // Set empty array on error
+        setClasses([]);
+      } finally {
+        setIsLoading(false);
       }
-    ] : [
-      {
-        id: 1,
-        name: 'SAT Math - Advanced',
-        description: 'Advanced mathematics preparation for SAT with focus on algebra and geometry',
-        teacher: {
-          id: 1,
-          first_name: 'John',
-          last_name: 'Smith',
-          email: 'john.smith@satfergana.com'
-        },
-        students: [
-          { id: 2, first_name: 'Alice', last_name: 'Johnson', email: 'alice@example.com' },
-          { id: 3, first_name: 'Bob', last_name: 'Wilson', email: 'bob@example.com' },
-          { id: 4, first_name: 'Carol', last_name: 'Davis', email: 'carol@example.com' },
-        ],
-        is_active: true,
-        created_at: '2024-01-15T10:00:00Z',
-        homework_count: 12,
-        upcoming_homework: 3,
-        average_score: 1250
-      }
-    ];
+    };
 
-    setTimeout(() => {
-      setClasses(mockClasses);
+    if (user) {
+      fetchClasses();
+    } else {
       setIsLoading(false);
-    }, 1000);
+    }
   }, [user]);
 
   const filteredClasses = classes.filter(cls =>
@@ -323,7 +274,7 @@ export default function ClassesPage() {
               </p>
               {user?.role === 'TEACHER' && !searchTerm && (
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={handleCreateClass}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Create Class

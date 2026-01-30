@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import AuthGuard from '@/components/AuthGuard';
-import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '../../components/AuthGuard';
+import DashboardLayout from '../../components/DashboardLayout';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -20,8 +20,9 @@ import {
   Download,
   Eye
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { formatDate, formatDateTime, formatPercentage, getSatScoreColor, getSubjectColor } from '@/utils/helpers';
+import { useAuth } from '../../contexts/AuthContext';
+import { formatDate, formatDateTime, formatPercentage, getSatScoreColor, getSubjectColor } from '../../utils/helpers';
+import { analyticsApi } from '../../utils/api';
 
 interface ProgressData {
   date: string;

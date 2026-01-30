@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
-import { API_BASE_URL, HTTP_STATUS } from '@/config/api';
-import { AuthResponse } from '@/types';
+import { API_BASE_URL, HTTP_STATUS } from '../config/api';
+import { AuthResponse } from '../types';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -51,10 +51,20 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        // Refresh failed, but don't immediately logout
+        // Only clear tokens and redirect if it's a clear auth failure
+        console.error('Token refresh failed:', refreshError);
+        
+        // Check if this is an authentication failure
+        if (refreshError && typeof refreshError === 'object' && 'response' in refreshError) {
+          const response = (refreshError as any).response;
+          if (response?.status === 401) {
+            // Clear tokens and redirect only for clear auth failures
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            window.location.href = '/login';
+          }
+        }
         return Promise.reject(refreshError);
       }
     }
@@ -126,7 +136,7 @@ export const authApi = {
   },
 
   getUserProfile: async () => {
-    return apiClient.get('/users/me/');
+    return apiClient.get('/users/profile/');
   },
 
   updateProfile: async (data: any) => {
@@ -151,12 +161,28 @@ export const usersApi = {
   createInvitation: async (data: { email: string; role: string }) => {
     return apiClient.post('/users/invitations/', data);
   },
+
+  getStudentProfile: async () => {
+    return apiClient.get('/student-profiles/me/');
+  },
+
+  updateStudentProfile: async (data: any) => {
+    return apiClient.patch('/student-profiles/me/', data);
+  },
+
+  updateExamDate: async (examDate: string) => {
+    return apiClient.patch('/student-profiles/exam_date/', { sat_exam_date: examDate });
+  },
 };
 
 // Classes API methods
 export const classesApi = {
   getClasses: async () => {
     return apiClient.get('/classes/');
+  },
+
+  getStudentClasses: async () => {
+    return apiClient.get('/classes/my_classes/');
   },
 
   getClass: async (id: number) => {
@@ -184,6 +210,10 @@ export const classesApi = {
 export const homeworkApi = {
   getHomework: async (params?: { class?: number; status?: string }) => {
     return apiClient.get('/homework/', { params });
+  },
+
+  getStudentHomework: async () => {
+    return apiClient.get('/homework/my_progress/');
   },
 
   getHomeworkDetail: async (id: number) => {
@@ -245,31 +275,31 @@ export const questionBankApi = {
 // Mock Exams API methods
 export const mockExamsApi = {
   getExams: async () => {
-    return apiClient.get('/mockexams/');
+    return apiClient.get('/mock-exams/');
   },
 
   getExam: async (id: number) => {
-    return apiClient.get(`/mockexams/${id}/`);
+    return apiClient.get(`/mock-exams/${id}/`);
   },
 
   startExam: async (id: number) => {
-    return apiClient.post(`/mockexams/${id}/start/`);
+    return apiClient.post(`/mock-exams/${id}/start/`);
   },
 
   submitExam: async (id: number, data: any) => {
-    return apiClient.post(`/mockexams/${id}/submit/`, data);
+    return apiClient.post(`/mock-exams/${id}/submit/`, data);
   },
 
   getMyAttempts: async () => {
-    return apiClient.get('/mockexams/my_attempts/');
+    return apiClient.get('/mock-exam-attempts/');
   },
 
   getAttempt: async (id: number) => {
-    return apiClient.get(`/mockexams/attempts/${id}/`);
+    return apiClient.get(`/mock-exam-attempts/${id}/`);
   },
 
   getExamStatistics: async () => {
-    return apiClient.get('/mockexams/statistics/');
+    return apiClient.get('/mock-exams/statistics/');
   },
 };
 
@@ -310,24 +340,28 @@ export const flashcardsApi = {
 
 // Rankings API methods
 export const rankingsApi = {
-  getWeeklyRankings: async (params?: { class?: number; limit?: number }) => {
-    return apiClient.get('/rankings/weekly/', { params });
-  },
-
-  getMonthlyRankings: async (params?: { class?: number; limit?: number }) => {
-    return apiClient.get('/rankings/monthly/', { params });
-  },
-
-  getAllTimeRankings: async (params?: { class?: number; limit?: number }) => {
-    return apiClient.get('/rankings/all_time/', { params });
+  getLeaderboard: async (params?: { period_type?: string; limit?: number }) => {
+    return apiClient.get('/rankings/leaderboard/', { params });
   },
 
   getMyRankings: async () => {
     return apiClient.get('/rankings/my_rankings/');
   },
 
-  getClassRankings: async (classId: number) => {
-    return apiClient.get(`/rankings/class/${classId}/`);
+  getRankingStats: async (params?: { period_type?: string }) => {
+    return apiClient.get('/rankings/stats/', { params });
+  },
+
+  updateRankings: async (data: { period_type: string; force_recalculate?: boolean }) => {
+    return apiClient.post('/rankings/update_rankings/', data);
+  },
+
+  getRankingHistory: async (params?: { student_id?: string; period_type?: string; limit?: number }) => {
+    return apiClient.get('/rankings/history/', { params });
+  },
+
+  getTopPerformers: async (params?: { period_type?: string; count?: number }) => {
+    return apiClient.get('/rankings/top_performers/', { params });
   },
 };
 
@@ -355,6 +389,22 @@ export const analyticsApi = {
 
   getClassAnalytics: async (classId: number) => {
     return apiClient.get(`/analytics/class_analytics/${classId}/`);
+  },
+
+  getDashboardStats: async () => {
+    return apiClient.get('/dashboard/stats/');
+  },
+
+  startStudySession: async (sessionType: string = 'practice') => {
+    return apiClient.post('/weak-areas/start_study_session/', { session_type: sessionType });
+  },
+
+  endStudySession: async (sessionId?: number) => {
+    return apiClient.post('/weak-areas/end_study_session/', sessionId ? { session_id: sessionId } : {});
+  },
+
+  getActiveSession: async () => {
+    return apiClient.get('/weak-areas/active_session/');
   },
 };
 

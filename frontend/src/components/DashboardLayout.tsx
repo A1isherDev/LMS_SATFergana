@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, LogOut, User, Settings, BarChart3, Home, Clock, Trophy, Brain } from 'lucide-react';
 
 interface LayoutProps {

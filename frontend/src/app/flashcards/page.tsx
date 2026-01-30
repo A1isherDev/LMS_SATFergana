@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import AuthGuard from '@/components/AuthGuard';
-import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '../../components/AuthGuard';
+import DashboardLayout from '../../components/DashboardLayout';
 import { 
   Brain, 
   RotateCcw, 
@@ -18,8 +18,9 @@ import {
   Star,
   Calendar
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { formatDate, getSubjectColor } from '@/utils/helpers';
+import { useAuth } from '../../contexts/AuthContext';
+import { formatDate, getSubjectColor } from '../../utils/helpers';
+import { flashcardsApi } from '../../utils/api';
 
 interface Flashcard {
   id: number;

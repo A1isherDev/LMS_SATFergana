@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AuthGuard from '@/components/AuthGuard';
-import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '../../components/AuthGuard';
+import DashboardLayout from '../../components/DashboardLayout';
 import { 
   Clock, 
   Calendar, 
@@ -17,8 +17,9 @@ import {
   TrendingUp,
   Star
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { formatDate, formatDateTime, getDifficultyColor } from '@/utils/helpers';
+import { useAuth } from '../../contexts/AuthContext';
+import { formatDate, formatDateTime, getDifficultyColor } from '../../utils/helpers';
+import { homeworkApi } from '../../utils/api';
 
 interface Homework {
   id: number;
@@ -64,29 +65,19 @@ export default function HomeworkPage() {
   };
 
   useEffect(() => {
-    // Fetch real homework data from API
     const fetchHomeworkData = async () => {
       try {
-        const response = await fetch('/api/homework/', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setHomework(data.results || data);
+        let response;
+        if (user?.role === 'TEACHER') {
+          response = await homeworkApi.getHomework() as any;
         } else {
-          // Fallback to mock data if API fails
-          const mockHomework = getMockHomeworkData(user);
-          setHomework(mockHomework);
+          response = await homeworkApi.getStudentHomework() as any;
         }
+        setHomework(response.results || response);
       } catch (error) {
         console.error('Error fetching homework data:', error);
-        // Fallback to mock data
-        const mockHomework = getMockHomeworkData(user);
-        setHomework(mockHomework);
+        // Set empty array on error
+        setHomework([]);
       } finally {
         setIsLoading(false);
       }
@@ -94,81 +85,10 @@ export default function HomeworkPage() {
 
     if (user) {
       fetchHomeworkData();
+    } else {
+      setIsLoading(false);
     }
   }, [user]);
-
-  const getMockHomeworkData = (currentUser: any): Homework[] => {
-    return currentUser?.role === 'TEACHER' ? [
-      {
-        id: 1,
-        title: 'Algebra Practice Set #5',
-        description: 'Complete exercises on quadratic equations and factoring',
-        class_obj: { id: 1, name: 'SAT Math - Advanced' },
-        assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2025-02-05T23:59:59Z',
-        is_published: true,
-        total_questions: 25,
-        difficulty_level: 'MEDIUM' as const,
-        created_at: '2025-01-20T10:00:00Z'
-      },
-      {
-        id: 2,
-        title: 'Reading Comprehension Test',
-        description: 'Analyze passages and answer comprehension questions',
-        class_obj: { id: 2, name: 'SAT Reading & Writing' },
-        assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2025-02-10T23:59:59Z',
-        is_published: true,
-        total_questions: 20,
-        difficulty_level: 'HARD' as const,
-        created_at: '2025-01-22T14:30:00Z'
-      }
-    ] : [
-      {
-        id: 1,
-        title: 'Algebra Practice Set #5',
-        description: 'Complete exercises on quadratic equations and factoring',
-        class_obj: { id: 1, name: 'SAT Math - Advanced' },
-        assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2025-02-05T23:59:59Z',
-        is_published: true,
-        total_questions: 25,
-        difficulty_level: 'MEDIUM' as const,
-        created_at: '2025-01-20T10:00:00Z',
-        submission: {
-          id: 1,
-          submitted_at: '2025-01-25T15:30:00Z',
-          score: 22,
-          max_score: 25,
-          is_late: false
-        }
-      },
-      {
-        id: 2,
-        title: 'Reading Comprehension Test',
-        description: 'Analyze passages and answer comprehension questions',
-        class_obj: { id: 2, name: 'SAT Reading & Writing' },
-        assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2025-02-10T23:59:59Z',
-        is_published: true,
-        total_questions: 20,
-        difficulty_level: 'HARD' as const,
-        created_at: '2025-01-22T14:30:00Z'
-      },
-      {
-        id: 3,
-        title: 'Geometry Review',
-        description: 'Review triangles, circles, and coordinate geometry',
-        class_obj: { id: 1, name: 'SAT Math - Advanced' },
-        assigned_by: { id: 1, first_name: 'John', last_name: 'Smith' },
-        due_date: '2025-02-15T23:59:59Z',
-        is_published: true,
-        total_questions: 30,
-        difficulty_level: 'EASY' as const,
-        created_at: '2025-01-24T09:00:00Z'
-      }
-    ];
-  };
 
   const getHomeworkStatus = (hw: Homework) => {
     if (hw.submission) {
@@ -359,8 +279,7 @@ export default function HomeworkPage() {
                           <button 
                             className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors"
                             onClick={() => {
-                              console.log('View analytics for homework', hw.id);
-                              alert('Analytics feature coming soon!');
+                              router.push(`/analytics?homework_id=${hw.id}`);
                             }}
                           >
                             <TrendingUp className="h-4 w-4" />

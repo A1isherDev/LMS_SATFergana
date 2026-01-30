@@ -13,7 +13,7 @@ class ClassSerializer(serializers.ModelSerializer):
     current_student_count = serializers.ReadOnlyField()
     is_full = serializers.ReadOnlyField()
     has_ended = serializers.ReadOnlyField()
-    teacher_id = serializers.IntegerField(write_only=True)
+    teacher_id = serializers.IntegerField(write_only=True, required=False)
     student_count = serializers.SerializerMethodField()
     class_stats = serializers.SerializerMethodField()
     
@@ -26,6 +26,10 @@ class ClassSerializer(serializers.ModelSerializer):
             'class_stats', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'start_date': {'required': False},
+            'end_date': {'required': False},
+        }
     
     def get_student_count(self, obj):
         """Get number of enrolled students."""

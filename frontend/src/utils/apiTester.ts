@@ -61,7 +61,7 @@ export class ApiTester {
         console.log('✅ Valid login successful');
         
         // Store token for subsequent tests
-        localStorage.setItem('test_token', response.access);
+        localStorage.setItem('test_token', (response as any).access);
       } catch (error) {
         this.results['auth_valid'] = `Error: ${error}`;
         console.log('❌ Valid login failed:', error);

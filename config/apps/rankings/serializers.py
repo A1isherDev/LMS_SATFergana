@@ -52,6 +52,7 @@ class LeaderboardEntrySerializer(serializers.Serializer):
     student_id = serializers.IntegerField()
     student_name = serializers.CharField()
     student_email = serializers.CharField()
+    student_bio = serializers.CharField(allow_null=True, required=False)
     rank = serializers.IntegerField()
     rank_change = serializers.IntegerField()
     rank_change_display = serializers.CharField()
@@ -61,6 +62,7 @@ class LeaderboardEntrySerializer(serializers.Serializer):
     average_sat_score = serializers.FloatField()
     highest_sat_score = serializers.IntegerField()
     mock_exam_count = serializers.IntegerField()
+    study_time_minutes = serializers.IntegerField()
 
 
 class LeaderboardSerializer(serializers.Serializer):
