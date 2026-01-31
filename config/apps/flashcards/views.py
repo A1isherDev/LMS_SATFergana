@@ -4,6 +4,8 @@ Views for the flashcards app.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from django.db.models import Q, Count, Avg
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -32,6 +34,27 @@ class FlashcardViewSet(viewsets.ModelViewSet):
     filterset_fields = ['difficulty', 'part_of_speech', 'is_active']
     search_fields = ['word', 'definition', 'example_sentence']
     
+    @extend_schema(
+        summary="List flashcards",
+        description="Retrieve a list of vocabulary flashcards based on user role and filters. Admins/teachers see all, students see only active flashcards.",
+        tags=["Flashcards"],
+        parameters=[
+            OpenApiParameter(
+                name='difficulty',
+                type=OpenApiTypes.STR,
+                enum=['EASY', 'MEDIUM', 'HARD'],
+                description='Filter by difficulty level',
+                required=False
+            ),
+            OpenApiParameter(
+                name='part_of_speech',
+                type=OpenApiTypes.STR,
+                enum=['NOUN', 'VERB', 'ADJECTIVE', 'ADVERB'],
+                description='Filter by part of speech',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -59,6 +82,27 @@ class FlashcardViewSet(viewsets.ModelViewSet):
             return [IsTeacherOrAdmin()]
         return [permissions.IsAuthenticated()]
     
+    @extend_schema(
+        summary="Get random flashcards",
+        description="Get random flashcards for practice. Returns a specified number of random flashcards.",
+        tags=["Flashcards"],
+        parameters=[
+            OpenApiParameter(
+                name='count',
+                type=OpenApiTypes.INT,
+                description='Number of flashcards to return',
+                required=False
+            ),
+            OpenApiParameter(
+                name='difficulty',
+                type=OpenApiTypes.STR,
+                enum=['EASY', 'MEDIUM', 'HARD'],
+                description='Filter by difficulty level',
+                required=False
+            )
+        ],
+        responses={200: FlashcardListSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def random(self, request):
         """Get random flashcards for practice."""
@@ -87,6 +131,26 @@ class FlashcardViewSet(viewsets.ModelViewSet):
         serializer = FlashcardListSerializer(flashcards, many=True)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Search flashcards",
+        description="Search flashcards by word or definition. Supports full-text search.",
+        tags=["Flashcards"],
+        parameters=[
+            OpenApiParameter(
+                name='q',
+                type=OpenApiTypes.STR,
+                description='Search query for word or definition',
+                required=True
+            ),
+            OpenApiParameter(
+                name='limit',
+                type=OpenApiTypes.INT,
+                description='Maximum number of results to return',
+                required=False
+            )
+        ],
+        responses={200: FlashcardListSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def search(self, request):
         """Search flashcards by word or definition."""
@@ -156,6 +220,20 @@ class FlashcardProgressViewSet(viewsets.ModelViewSet):
         serializer = FlashcardProgressDetailSerializer(due_cards, many=True)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Review flashcard",
+        description="Review a flashcard and update spaced repetition algorithm. Tracks learning progress.",
+        tags=["Flashcards"],
+        request=FlashcardReviewSerializer,
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'message': {'type': 'string'},
+                'next_review_date': {'type': 'string'},
+                'interval': {'type': 'integer'}
+            }
+        }}
+    )
     @action(detail=True, methods=['post'])
     def review(self, request, pk=None):
         """Review a flashcard and update spaced repetition."""
@@ -213,6 +291,12 @@ class FlashcardProgressViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
     
+    @extend_schema(
+        summary="Get my flashcard stats",
+        description="Get current student's flashcard learning statistics and performance metrics.",
+        tags=["Flashcards"],
+        responses={200: FlashcardStatsSerializer}
+    )
     @action(detail=False, methods=['get'])
     def my_stats(self, request):
         """Get current student's flashcard learning statistics."""

@@ -6,6 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from django.contrib.auth import get_user_model
 from apps.users.models import StudentProfile, Invitation
 from apps.users.serializers import (
@@ -29,6 +31,11 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
     
+    @extend_schema(
+        summary="List users",
+        description="Retrieve a list of users based on user role. Admins see all users, teachers see students, students see themselves.",
+        tags=["Users"]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -42,6 +49,12 @@ class UserViewSet(viewsets.ModelViewSet):
             # Students can only see themselves
             return User.objects.filter(id=user.id)
     
+    @extend_schema(
+        summary="Get or update current user profile",
+        description="Retrieve or update the current authenticated user's profile information.",
+        tags=["Users"],
+        methods=["GET", "PATCH"]
+    )
     @action(detail=False, methods=['get', 'patch'])
     def me(self, request):
         """Get or update current user's profile."""
@@ -56,6 +69,31 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
+    
+    @extend_schema(
+        summary="Update user streak",
+        description="Update the current user's daily activity streak. Automatically calculates consecutive days of activity.",
+        tags=["Users"],
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'streak_count': {'type': 'integer', 'description': 'Current streak count'},
+                'streak_display': {'type': 'string', 'description': 'Formatted streak display'},
+                'last_active_date': {'type': 'string', 'format': 'date', 'description': 'Last active date'}
+            }
+        }}
+    )
+    @action(detail=False, methods=['post'])
+    def update_streak(self, request):
+        """Update current user's streak."""
+        user = request.user
+        user.update_streak()
+        
+        return Response({
+            'streak_count': user.streak_count,
+            'streak_display': user.get_streak_display(),
+            'last_active_date': user.last_active_date
+        })
 
 
 class StudentProfileViewSet(viewsets.ModelViewSet):
@@ -120,6 +158,25 @@ class RegisterView(APIView):
     """
     permission_classes = [permissions.AllowAny]
     
+    @extend_schema(
+        summary="Register new user",
+        description="Register a new user using a valid invitation code. Creates user account and returns JWT tokens.",
+        tags=["Authentication"],
+        request=RegisterSerializer,
+        responses={201: {
+            'type': 'object',
+            'properties': {
+                'user': {'$ref': '#/components/schemas/User'},
+                'tokens': {
+                    'type': 'object',
+                    'properties': {
+                        'access': {'type': 'string'},
+                        'refresh': {'type': 'string'}
+                    }
+                }
+            }
+        }}
+    )
     def post(self, request):
         """Register a new user with invitation code."""
         serializer = RegisterSerializer(data=request.data)
@@ -144,6 +201,25 @@ class LoginView(APIView):
     """
     permission_classes = [permissions.AllowAny]
     
+    @extend_schema(
+        summary="User login",
+        description="Authenticate user with email and password. Returns JWT tokens for authenticated session.",
+        tags=["Authentication"],
+        request=LoginSerializer,
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'user': {'$ref': '#/components/schemas/User'},
+                'tokens': {
+                    'type': 'object',
+                    'properties': {
+                        'access': {'type': 'string'},
+                        'refresh': {'type': 'string'}
+                    }
+                }
+            }
+        }}
+    )
     def post(self, request):
         """Authenticate user and return JWT tokens."""
         serializer = LoginSerializer(data=request.data, context={'request': request})

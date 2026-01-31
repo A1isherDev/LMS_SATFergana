@@ -5,6 +5,8 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from django.db.models import Q, Count, Avg, F, Sum
 from django.utils import timezone
 from django.db.models.functions import TruncDate
@@ -41,6 +43,25 @@ class StudentProgressViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['date', 'homework_completion_rate', 'homework_accuracy']
     ordering = ['-date']
     
+    @extend_schema(
+        summary="List student progress",
+        description="Retrieve student progress data based on user role. Admins see all, teachers see their students, students see their own progress.",
+        tags=["Analytics"],
+        parameters=[
+            OpenApiParameter(
+                name='student',
+                type=OpenApiTypes.INT,
+                description='Filter by student ID',
+                required=False
+            ),
+            OpenApiParameter(
+                name='date',
+                type=OpenApiTypes.DATE,
+                description='Filter by date',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -58,6 +79,12 @@ class StudentProgressViewSet(viewsets.ReadOnlyModelViewSet):
         """Return appropriate serializer based on action."""
         return StudentProgressSerializer
     
+    @extend_schema(
+        summary="Get my progress",
+        description="Get current student's progress history across all learning activities.",
+        tags=["Analytics"],
+        responses={200: StudentProgressSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def my_progress(self, request):
         """Get current student's progress history."""
@@ -77,6 +104,20 @@ class StudentProgressViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = StudentProgressSerializer(progress_records, many=True)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Get progress chart data",
+        description="Get progress data formatted for charts and visualizations.",
+        tags=["Analytics"],
+        parameters=[
+            OpenApiParameter(
+                name='days',
+                type=OpenApiTypes.INT,
+                description='Number of days to include in chart',
+                required=False
+            )
+        ],
+        responses={200: ProgressChartSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def progress_chart(self, request):
         """Get progress data for charts."""
@@ -506,9 +547,15 @@ class AnalyticsViewSet(viewsets.GenericViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    @extend_schema(
+        summary="Get student summary",
+        description="Get comprehensive analytics summary for current student including progress, weak areas, and study patterns.",
+        tags=["Analytics"],
+        responses={200: StudentAnalyticsSummarySerializer}
+    )
     @action(detail=False, methods=['get'])
     def student_summary(self, request):
-        """Get comprehensive analytics summary for current student."""
+        """Get comprehensive analytics summary for current student"""
         if not request.user.is_student:
             return Response(
                 {"detail": "Only students can view their analytics summary"},
@@ -785,6 +832,20 @@ class AnalyticsViewSet(viewsets.GenericViewSet):
         }
 
 
+@extend_schema(
+    summary="Get dashboard statistics",
+    description="Get dashboard statistics for the current user based on their role.",
+    tags=["Analytics"],
+    responses={200: {
+        'type': 'object',
+        'properties': {
+            'total_students': {'type': 'integer'},
+            'active_classes': {'type': 'integer'},
+            'pending_homework': {'type': 'integer'},
+            'average_score': {'type': 'number'}
+        }
+    }}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def dashboard_stats(request):

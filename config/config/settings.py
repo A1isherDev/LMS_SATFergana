@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_celery_beat',
+    'drf_spectacular',
     
     # Local apps
     'apps.common',
@@ -167,6 +168,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # JWT Settings
@@ -197,14 +199,14 @@ if DEBUG:
     # Development: use local logs directory
     LOG_DIR = BASE_DIR / 'logs'
 else:
-    # Production: use system logs directory
+    # Production: use appropriate system directory
     if platform.system() == 'Windows':
-        LOG_DIR = BASE_DIR / 'logs'
+        LOG_DIR = Path('C:/ProgramData/SAT_Fergana/logs')
     else:
-        LOG_DIR = '/var/log/sat-fergana'
+        LOG_DIR = Path('/var/log/sat_fergana')
 
 # Ensure log directory exists
-os.makedirs(LOG_DIR, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 LOGGING = {
     'version': 1,
@@ -222,32 +224,77 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(LOG_DIR, 'app.log'),
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'django.log',
+            'maxBytes': 1024*1024*15,  # 15MB
+            'backupCount': 10,
             'formatter': 'verbose',
         },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
+            'formatter': 'simple'
         },
     },
     'root': {
-        'handlers': ['console', 'file'] if not DEBUG else ['console'],
+        'handlers': ['console', 'file'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
         'apps': {
-            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
     },
+}
+
+# API Documentation Settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'SAT Fergana API',
+    'DESCRIPTION': 'SAT Learning Management System API documentation',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': '/api/',
+    'SERVERS': [
+        {'url': 'http://localhost:8000', 'description': 'Development server'},
+        {'url': 'https://api.satfergana.uz', 'description': 'Production server'},
+    ],
+    'TAGS': [
+        {'name': 'Authentication', 'description': 'User authentication and registration'},
+        {'name': 'Users', 'description': 'User management and profiles'},
+        {'name': 'Classes', 'description': 'Class management'},
+        {'name': 'Homework', 'description': 'Homework assignments and submissions'},
+        {'name': 'Question Bank', 'description': 'SAT question database and practice'},
+        {'name': 'Mock Exams', 'description': 'Mock exam management and attempts'},
+        {'name': 'Flashcards', 'description': 'Flashcard system for vocabulary'},
+        {'name': 'Rankings', 'description': 'Leaderboards and rankings'},
+        {'name': 'Analytics', 'description': 'Student progress and analytics'},
+    ],
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+    },
+    'REDOC_UI_SETTINGS': {
+        'hideDownloadButton': True,
+        'hideHostname': True,
+    },
+    # Disable enum naming to avoid potential issues
+    'ENUM_NAME_OVERRIDES': {},
+    # Simplify schema generation
+    'GENERIC_ADDITIONAL_PROPERTIES': None,
+    # Limit schema size to prevent timeouts
+    'PREPROCESSING_HOOKS': [],
+    'POSTPROCESSING_HOOKS': [],
+    # Disable some features that might cause issues
+    'DISABLE_ERRORS_AND_WARNINGS': True,
 }
 
 # Cache Configuration for Production

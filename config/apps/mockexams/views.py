@@ -4,6 +4,8 @@ Views for the mockexams app.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from django.db.models import Q, Count, Avg, F
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -33,6 +35,26 @@ class MockExamViewSet(viewsets.ModelViewSet):
     filterset_fields = ['exam_type', 'is_active']
     search_fields = ['title', 'description']
     
+    @extend_schema(
+        summary="List mock exams",
+        description="Retrieve a list of mock SAT exams based on user role. Admins/teachers see all, students see only active exams.",
+        tags=["Mock Exams"],
+        parameters=[
+            OpenApiParameter(
+                name='exam_type',
+                type=OpenApiTypes.STR,
+                enum=['FULL_LENGTH', 'SECTION', 'PRACTICE'],
+                description='Filter by exam type',
+                required=False
+            ),
+            OpenApiParameter(
+                name='is_active',
+                type=OpenApiTypes.BOOL,
+                description='Filter by active status',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -58,6 +80,12 @@ class MockExamViewSet(viewsets.ModelViewSet):
             return [IsTeacherOrAdmin()]
         return [permissions.IsAuthenticated()]
     
+    @extend_schema(
+        summary="Start mock exam",
+        description="Start a new attempt at a mock exam. Creates an exam attempt and returns the attempt details.",
+        tags=["Mock Exams"],
+        responses={201: MockExamAttemptDetailSerializer}
+    )
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         """Start a mock exam attempt."""
@@ -102,6 +130,12 @@ class MockExamViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
     
+    @extend_schema(
+        summary="Get exam sections",
+        description="Get exam sections with questions for a specific attempt. Returns questions organized by sections.",
+        tags=["Mock Exams"],
+        responses={200: MockExamSectionSerializer(many=True)}
+    )
     @action(detail=True, methods=['get'])
     def sections(self, request, pk=None):
         """Get exam sections with questions for a specific attempt."""
@@ -165,6 +199,19 @@ class MockExamViewSet(viewsets.ModelViewSet):
         
         return Response(sections)
     
+    @extend_schema(
+        summary="Submit exam section",
+        description="Submit answers for a specific section of the mock exam.",
+        tags=["Mock Exams"],
+        request=MockExamSubmissionSerializer,
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'message': {'type': 'string'},
+                'section_score': {'type': 'integer'}
+            }
+        }}
+    )
     @action(detail=True, methods=['post'])
     def submit_section(self, request, pk=None):
         """Submit answers for a specific section."""
@@ -304,6 +351,12 @@ class MockExamAttemptViewSet(viewsets.ModelViewSet):
             return [IsTeacherOrAdmin()]
         return [permissions.IsAuthenticated()]
     
+    @extend_schema(
+        summary="Get my exam attempts",
+        description="Get current student's mock exam attempts and progress.",
+        tags=["Mock Exams"],
+        responses={200: StudentMockExamProgressSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def my_attempts(self, request):
         """Get current student's mock exam attempts."""

@@ -4,6 +4,8 @@ Views for the questionbank app.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from django.db.models import Q, Count, Avg, F
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.questionbank.models import Question, QuestionAttempt
@@ -29,6 +31,33 @@ class QuestionViewSet(viewsets.ModelViewSet):
     filterset_fields = ['question_type', 'skill_tag', 'difficulty', 'is_active']
     search_fields = ['question_text', 'skill_tag']
     
+    @extend_schema(
+        summary="List questions",
+        description="Retrieve a list of SAT questions based on user role and filters. Admins/teachers see all, students see only active questions.",
+        tags=["Question Bank"],
+        parameters=[
+            OpenApiParameter(
+                name='question_type',
+                type=OpenApiTypes.STR,
+                enum=['MULTIPLE_CHOICE', 'GRID_RESPONSE'],
+                description='Filter by question type',
+                required=False
+            ),
+            OpenApiParameter(
+                name='difficulty',
+                type=OpenApiTypes.STR,
+                enum=['EASY', 'MEDIUM', 'HARD'],
+                description='Filter by difficulty level',
+                required=False
+            ),
+            OpenApiParameter(
+                name='skill_tag',
+                type=OpenApiTypes.STR,
+                description='Filter by skill tag (e.g., algebra, geometry)',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -58,6 +87,34 @@ class QuestionViewSet(viewsets.ModelViewSet):
             return [IsTeacherOrAdmin()]
         return [permissions.IsAuthenticated()]
     
+    @extend_schema(
+        summary="Get practice questions",
+        description="Get questions for practice mode. Returns questions suitable for student practice with filters.",
+        tags=["Question Bank"],
+        parameters=[
+            OpenApiParameter(
+                name='question_type',
+                type=OpenApiTypes.STR,
+                enum=['MULTIPLE_CHOICE', 'GRID_RESPONSE'],
+                description='Filter by question type',
+                required=False
+            ),
+            OpenApiParameter(
+                name='difficulty',
+                type=OpenApiTypes.STR,
+                enum=['EASY', 'MEDIUM', 'HARD'],
+                description='Filter by difficulty level',
+                required=False
+            ),
+            OpenApiParameter(
+                name='limit',
+                type=OpenApiTypes.INT,
+                description='Number of questions to return',
+                required=False
+            )
+        ],
+        responses={200: QuestionStudentSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def practice(self, request):
         """Get questions for practice mode (student view)."""
@@ -97,6 +154,20 @@ class QuestionViewSet(viewsets.ModelViewSet):
         serializer = QuestionStudentSerializer(questions, many=True)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Attempt question",
+        description="Record an attempt at a question. Tracks student answers and provides feedback.",
+        tags=["Question Bank"],
+        request=QuestionAttemptCreateSerializer,
+        responses={201: {
+            'type': 'object',
+            'properties': {
+                'correct': {'type': 'boolean'},
+                'feedback': {'type': 'string'},
+                'explanation': {'type': 'string'}
+            }
+        }}
+    )
     @action(detail=True, methods=['post'])
     def attempt(self, request, pk=None):
         """Record an attempt at a question."""
@@ -136,6 +207,12 @@ class QuestionViewSet(viewsets.ModelViewSet):
         
         return Response(response_data, status=status.HTTP_201_CREATED)
     
+    @extend_schema(
+        summary="Get question statistics",
+        description="Get question statistics and analytics (teachers/admins only).",
+        tags=["Question Bank"],
+        responses={200: QuestionStatsSerializer}
+    )
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """Get question statistics (teachers/admins only)."""
@@ -220,6 +297,12 @@ class QuestionAttemptViewSet(viewsets.ModelViewSet):
             return [IsStudent()]
         return [permissions.IsAuthenticated()]
     
+    @extend_schema(
+        summary="Get my progress",
+        description="Get current student's progress statistics across all question attempts.",
+        tags=["Question Bank"],
+        responses={200: StudentProgressSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def my_progress(self, request):
         """Get current student's progress statistics."""

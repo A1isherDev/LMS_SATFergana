@@ -4,6 +4,8 @@ Views for the homework app.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from django.db.models import Q, Count, Avg, F
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -30,6 +32,25 @@ class HomeworkViewSet(viewsets.ModelViewSet):
     filterset_fields = ['class_obj', 'assigned_by', 'is_published']
     search_fields = ['title', 'description']
     
+    @extend_schema(
+        summary="List homework",
+        description="Retrieve a list of homework assignments based on user role. Admins see all, teachers see their assignments, students see assigned homework.",
+        tags=["Homework"],
+        parameters=[
+            OpenApiParameter(
+                name='class_obj',
+                type=OpenApiTypes.INT,
+                description='Filter by class ID',
+                required=False
+            ),
+            OpenApiParameter(
+                name='is_published',
+                type=OpenApiTypes.BOOL,
+                description='Filter by published status',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -65,6 +86,13 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         """Set assigned_by to current user."""
         serializer.save(assigned_by=self.request.user)
     
+    @extend_schema(
+        summary="Submit homework",
+        description="Submit homework for the current student. Students can only submit once per homework.",
+        tags=["Homework"],
+        request=HomeworkSubmissionCreateSerializer,
+        responses={201: HomeworkSubmissionDetailSerializer}
+    )
     @action(detail=True, methods=['post'])
     def submit(self, request, pk=None):
         """Submit homework for the current student."""
@@ -115,6 +143,12 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
     
+    @extend_schema(
+        summary="Get my submission",
+        description="Get current student's submission for this homework.",
+        tags=["Homework"],
+        responses={200: HomeworkSubmissionDetailSerializer}
+    )
     @action(detail=True, methods=['get'])
     def my_submission(self, request, pk=None):
         """Get current student's submission for this homework."""
@@ -139,6 +173,12 @@ class HomeworkViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     
+    @extend_schema(
+        summary="Get homework submissions",
+        description="Get all submissions for this homework (teachers/admins only).",
+        tags=["Homework"],
+        responses={200: HomeworkSubmissionSerializer(many=True)}
+    )
     @action(detail=True, methods=['get'])
     def submissions(self, request, pk=None):
         """Get all submissions for this homework (teachers/admins only)."""
@@ -243,6 +283,12 @@ class HomeworkSubmissionViewSet(viewsets.ModelViewSet):
             return [IsTeacherOrAdmin()]
         return [permissions.IsAuthenticated()]
     
+    @extend_schema(
+        summary="Get my homework progress",
+        description="Get current student's homework progress across all assignments.",
+        tags=["Homework"],
+        responses={200: StudentHomeworkProgressSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def my_progress(self, request):
         """Get current student's homework progress."""

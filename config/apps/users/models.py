@@ -58,6 +58,43 @@ class User(AbstractUser, TimestampedModel):
         related_name='invited_users'
     )
     
+    # Streak tracking
+    last_active_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Last date the user was active (for streak calculation)"
+    )
+    streak_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Current streak of consecutive days active"
+    )
+    
+    # Personal information
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Phone number"
+    )
+    date_of_birth = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date of birth"
+    )
+    grade_level = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Grade level (e.g., 9th, 10th, 11th, 12th)"
+    )
+    bio = models.TextField(
+        blank=True,
+        null=True,
+        max_length=500,
+        help_text="Short biography or description"
+    )
+    
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
     
@@ -69,6 +106,7 @@ class User(AbstractUser, TimestampedModel):
             models.Index(fields=['email']),
             models.Index(fields=['role']),
             models.Index(fields=['invitation_code']),
+            models.Index(fields=['last_active_date']),
         ]
     
     def __str__(self):
@@ -85,6 +123,34 @@ class User(AbstractUser, TimestampedModel):
     @property
     def is_admin(self):
         return self.role == 'ADMIN' or self.is_staff
+    
+    def update_streak(self):
+        """Update user's streak based on last active date."""
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        if self.last_active_date == today:
+            # Already active today, no change needed
+            return
+        
+        if self.last_active_date == today - timezone.timedelta(days=1):
+            # Yesterday was active, increment streak
+            self.streak_count += 1
+        else:
+            # Streak broken, reset to 1
+            self.streak_count = 1
+        
+        self.last_active_date = today
+        self.save(update_fields=['last_active_date', 'streak_count'])
+    
+    def get_streak_display(self):
+        """Get formatted streak display."""
+        if self.streak_count == 0:
+            return "No streak"
+        elif self.streak_count == 1:
+            return "1 day streak"
+        else:
+            return f"{self.streak_count} days streak"
 
 
 class StudentProfile(TimestampedModel):

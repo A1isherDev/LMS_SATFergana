@@ -4,6 +4,8 @@ Views for the rankings app.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -45,6 +47,24 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['rank', 'total_points', 'created_at']
     ordering = ['rank']
     
+    @extend_schema(
+        summary="List rankings",
+        description="Retrieve a list of rankings based on user role and filters.",
+        tags=["Rankings"],
+        parameters=[
+            OpenApiParameter(
+                name='period_type',
+                type=OpenApiTypes.STR,
+                enum=['WEEKLY', 'MONTHLY', 'ALL_TIME'],
+                description='Filter by period type'
+            ),
+            OpenApiParameter(
+                name='period_start',
+                type=OpenApiTypes.DATE,
+                description='Filter by period start date'
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -64,6 +84,26 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
             return RankingListSerializer
         return RankingSerializer
     
+    @extend_schema(
+        summary="Get leaderboard",
+        description="Get current leaderboard for a specific period type.",
+        tags=["Rankings"],
+        parameters=[
+            OpenApiParameter(
+                name='period_type',
+                type=OpenApiTypes.STR,
+                enum=['WEEKLY', 'MONTHLY', 'ALL_TIME'],
+                description='Period type for leaderboard',
+                required=False
+            ),
+            OpenApiParameter(
+                name='limit',
+                type=OpenApiTypes.INT,
+                description='Number of top performers to return',
+                required=False
+            )
+        ]
+    )
     @action(detail=False, methods=['get'])
     def leaderboard(self, request):
         """Get current leaderboard for a specific period."""
@@ -144,6 +184,11 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = LeaderboardSerializer(leaderboard_data)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Get my rankings",
+        description="Get current student's rankings across all periods.",
+        tags=["Rankings"]
+    )
     @action(detail=False, methods=['get'])
     def my_rankings(self, request):
         """Get current student's rankings across all periods."""
@@ -210,6 +255,20 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = StudentRankingSummarySerializer(summary_data)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Get ranking statistics",
+        description="Get ranking statistics for a specific period.",
+        tags=["Rankings"],
+        parameters=[
+            OpenApiParameter(
+                name='period_type',
+                type=OpenApiTypes.STR,
+                enum=['WEEKLY', 'MONTHLY', 'ALL_TIME'],
+                description='Period type for statistics',
+                required=False
+            )
+        ]
+    )
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """Get ranking statistics for a specific period."""
@@ -268,6 +327,13 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = RankingStatsSerializer(stats_data)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Update rankings",
+        description="Trigger ranking updates for all students (teachers/admins only).",
+        tags=["Rankings"],
+        request=RankingUpdateSerializer,
+        responses={200: {"type": "object", "properties": {"message": {"type": "string"}}}}
+    )
     @action(detail=False, methods=['post'])
     def update_rankings(self, request):
         """Trigger ranking updates (teachers/admins only)."""
@@ -306,6 +372,27 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @extend_schema(
+        summary="Get ranking history",
+        description="Get ranking history for a specific student or time period.",
+        tags=["Rankings"],
+        parameters=[
+            OpenApiParameter(
+                name='student_id',
+                type=OpenApiTypes.INT,
+                description='Filter by student ID (optional)',
+                required=False
+            ),
+            OpenApiParameter(
+                name='period_type',
+                type=OpenApiTypes.STR,
+                enum=['WEEKLY', 'MONTHLY', 'ALL_TIME'],
+                description='Filter by period type',
+                required=False
+            )
+        ],
+        responses={200: RankingListSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def history(self, request):
         """Get ranking history for a specific student or period."""
@@ -333,6 +420,27 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = RankingListSerializer(rankings, many=True)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Get top performers",
+        description="Get top performers across all periods. Returns highest-ranked students.",
+        tags=["Rankings"],
+        parameters=[
+            OpenApiParameter(
+                name='period_type',
+                type=OpenApiTypes.STR,
+                enum=['WEEKLY', 'MONTHLY', 'ALL_TIME'],
+                description='Filter by period type',
+                required=False
+            ),
+            OpenApiParameter(
+                name='limit',
+                type=OpenApiTypes.INT,
+                description='Number of top performers to return',
+                required=False
+            )
+        ],
+        responses={200: RankingListSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def top_performers(self, request):
         """Get top performers across all periods."""

@@ -4,6 +4,8 @@ Views for the classes app.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from django.utils import timezone
 from django.db.models import Q, Count, Avg, F, Sum
 from apps.classes.models import Class
@@ -24,6 +26,11 @@ class ClassViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    @extend_schema(
+        summary="List classes",
+        description="Retrieve a list of classes based on user role. Admins see all, teachers see their classes, students see enrolled classes.",
+        tags=["Classes"]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -74,6 +81,19 @@ class ClassViewSet(viewsets.ModelViewSet):
         else:
             serializer.save(**validated_data)
     
+    @extend_schema(
+        summary="Enroll students in class",
+        description="Enroll multiple students in a class. Only teachers and admins can enroll students.",
+        tags=["Classes"],
+        request=ClassEnrollmentSerializer,
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'message': {'type': 'string'},
+                'enrolled_count': {'type': 'integer'}
+            }
+        }}
+    )
     @action(detail=True, methods=['post'])
     def enroll_students(self, request, pk=None):
         """Enroll students in the class."""
@@ -112,6 +132,19 @@ class ClassViewSet(viewsets.ModelViewSet):
             "enrolled_count": len(students_to_enroll)
         })
     
+    @extend_schema(
+        summary="Remove students from class",
+        description="Remove multiple students from a class. Only teachers and admins can remove students.",
+        tags=["Classes"],
+        request=ClassEnrollmentSerializer,
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'message': {'type': 'string'},
+                'removed_count': {'type': 'integer'}
+            }
+        }}
+    )
     @action(detail=True, methods=['post'])
     def remove_students(self, request, pk=None):
         """Remove students from the class."""
@@ -133,6 +166,20 @@ class ClassViewSet(viewsets.ModelViewSet):
             "removed_count": removed_count
         })
     
+    @extend_schema(
+        summary="Get class leaderboard",
+        description="Get class leaderboard for different time periods. Shows student rankings within the class.",
+        tags=["Classes"],
+        parameters=[
+            OpenApiParameter(
+                name='period_type',
+                type=OpenApiTypes.STR,
+                enum=['WEEKLY', 'MONTHLY', 'ALL_TIME'],
+                description='Time period for leaderboard',
+                required=False
+            )
+        ]
+    )
     @action(detail=True, methods=['get'])
     def leaderboard(self, request, pk=None):
         """Get class leaderboard for different time periods."""
@@ -221,6 +268,11 @@ class ClassViewSet(viewsets.ModelViewSet):
         serializer = ClassLeaderboardSerializer(response_data)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Get my classes",
+        description="Get classes for the current user. Teachers see their classes, students see enrolled classes.",
+        tags=["Classes"]
+    )
     @action(detail=False, methods=['get'])
     def my_classes(self, request):
         """Get classes for the current user."""

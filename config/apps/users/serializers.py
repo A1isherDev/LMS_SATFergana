@@ -12,14 +12,17 @@ from apps.common.utils import calculate_days_until_exam
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model."""
     role_display = serializers.CharField(source='get_role_display', read_only=True)
+    streak_display = serializers.CharField(source='get_streak_display', read_only=True)
     
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'role', 'role_display',
-            'date_joined', 'is_active', 'invited_by'
+            'date_joined', 'is_active', 'invited_by',
+            'last_active_date', 'streak_count', 'streak_display',
+            'phone_number', 'date_of_birth', 'grade_level', 'bio'
         ]
-        read_only_fields = ['id', 'date_joined', 'is_active']
+        read_only_fields = ['id', 'date_joined', 'is_active', 'last_active_date', 'streak_count']
 
 
 class StudentProfileSerializer(serializers.ModelSerializer):
@@ -68,12 +71,17 @@ class RegisterSerializer(serializers.ModelSerializer):
     invitation_code = serializers.CharField(write_only=True, required=True)
     first_name = serializers.CharField(required=True)
     last_name = serializers.CharField(required=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    grade_level = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    bio = serializers.CharField(required=False, allow_blank=True, max_length=500)
     
     class Meta:
         model = User
         fields = [
             'email', 'password', 'password_confirm', 'invitation_code',
-            'first_name', 'last_name'
+            'first_name', 'last_name', 'phone_number', 'date_of_birth', 
+            'grade_level', 'bio'
         ]
     
     def validate_invitation_code(self, value):
@@ -112,6 +120,10 @@ class RegisterSerializer(serializers.ModelSerializer):
             invited_by=invitation.invited_by,
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
+            phone_number=validated_data.get('phone_number', ''),
+            date_of_birth=validated_data.get('date_of_birth'),
+            grade_level=validated_data.get('grade_level', ''),
+            bio=validated_data.get('bio', ''),
         )
         
         # Mark invitation as used
