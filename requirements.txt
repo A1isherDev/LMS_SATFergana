@@ -3,6 +3,9 @@ Django>=5.2.0,<6.0
 djangorestframework>=3.14.0
 djangorestframework-simplejwt>=5.3.0
 
+# API Documentation
+drf-spectacular>=0.29.0
+
 # Database
 psycopg2-binary>=2.9.9
 
