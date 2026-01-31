@@ -77,12 +77,23 @@ export default function ProfilePage() {
     fetchStudentProfile();
   }, [user]);
 
-  const handleInputChange = (field: keyof ProfileData, value: string | number) => {
-    setProfileData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  // Keep form in sync with latest user and studentProfile data when not editing
+  useEffect(() => {
+    if (user && !isEditing) {
+      setProfileData(prev => ({
+        ...prev,
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        email: user.email || '',
+        phone_number: user.phone_number || '',
+        date_of_birth: user.date_of_birth || '',
+        grade_level: user.grade_level || 11,
+        target_sat_score: studentProfile?.target_sat_score || user.target_sat_score || 1400,
+        sat_exam_date: studentProfile?.sat_exam_date || null,
+        bio: user.bio || ''
+      }));
+    }
+  }, [user, studentProfile, isEditing]);
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -91,6 +102,7 @@ export default function ProfilePage() {
       await usersApi.updateProfile({
         first_name: profileData.first_name,
         last_name: profileData.last_name,
+        email: profileData.email,
         phone_number: profileData.phone_number,
         date_of_birth: profileData.date_of_birth,
         grade_level: profileData.grade_level,
@@ -112,12 +124,17 @@ export default function ProfilePage() {
         });
       }
       
-      // Update local user context
+      // Refresh user from backend and update local user context
       if (user) {
-        updateUser({
-          ...user,
-          ...profileData
-        });
+        try {
+          const updatedUser = await usersApi.getProfile();
+          updateUser(updatedUser);
+        } catch (err) {
+          updateUser({
+            ...user,
+            ...profileData
+          });
+        }
       }
       
       // Refresh student profile
@@ -136,6 +153,13 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleInputChange = (field: keyof ProfileData, value: string | number) => {
+    setProfileData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleCancel = () => {
