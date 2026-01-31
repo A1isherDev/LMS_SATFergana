@@ -136,7 +136,8 @@ export const authApi = {
   },
 
   getUserProfile: async () => {
-    return apiClient.get('/users/profile/');
+    // Use /users/me/ to fetch current user's profile
+    return apiClient.get('/users/me/');
   },
 
   updateProfile: async (data: any) => {
@@ -147,11 +148,13 @@ export const authApi = {
 // Users API methods
 export const usersApi = {
   getProfile: async () => {
-    return apiClient.get('/users/profile/');
+    // Return current user's profile
+    return apiClient.get('/users/me/');
   },
 
   updateProfile: async (data: any) => {
-    return apiClient.patch('/users/profile/', data);
+    // Update current user's profile
+    return apiClient.patch('/users/me/', data);
   },
 
   getInvitations: async () => {

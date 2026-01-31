@@ -1,19 +1,29 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { BookOpen, LogOut, User, Settings, BarChart3, Home, Clock, Trophy, Brain } from 'lucide-react';
+import { BookOpen, LogOut, User, Settings, BarChart3, Home, Clock, Trophy, Brain, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export default function DashboardLayout({ children }: LayoutProps) {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem('dashboard-collapsed');
+      return stored === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Initialized synchronously from localStorage to avoid sidebar width flash on navigation
 
   const handleLogout = () => {
     logout();
@@ -33,73 +43,92 @@ export default function DashboardLayout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg">
+      <div className={`fixed inset-y-0 left-0 z-50 ${collapsed ? 'w-20' : 'w-64'} bg-white shadow-lg transition-all duration-300 ease-in-out`}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 bg-blue-600">
-            <BookOpen className="h-8 w-8 text-white mr-2" />
-            <span className="text-white font-bold text-xl">SAT Fergana</span>
+          <div className={`flex items-center ${collapsed ? 'h-16 px-4 justify-center' : 'h-16 px-4 justify-between border-b-2 border-gray-300'} transition-all duration-300`}>
+            <div className="flex items-center">
+              <BookOpen className="h-8 w-8 text-blue-600 flex-shrink-0" />
+              <span className={`font-bold text-xl text-gray-900 ml-2 transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+                SAT Fergana
+              </span>
+            </div>
+            
+            {!collapsed && (
+              <button
+                onClick={() => { setCollapsed(true); try { localStorage.setItem('dashboard-collapsed','true'); } catch (e) {} }}
+                aria-label="Collapse sidebar"
+                className="text-blue-600 p-2 rounded-md cursor-pointer bg-white border border-blue-200 shadow-sm hover:bg-blue-50 transition-colors flex-shrink-0"
+              >
+                <ChevronsLeft className="h-6 w-6" />
+              </button>
+            )}
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-4 space-y-2">
+            {collapsed && (
+              <div className="flex justify-center mb-2">
+                <button
+                  onClick={() => { setCollapsed(false); try { localStorage.setItem('dashboard-collapsed','false'); } catch (e) {} }}
+                  aria-label="Expand sidebar"
+                  className="w-12 h-12 flex items-center justify-center text-blue-600 rounded-md cursor-pointer bg-white border border-blue-200 shadow-sm hover:bg-blue-50 transition-colors"
+                >
+                  <ChevronsRight className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+
             {navigation.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`flex items-center justify-center ${collapsed ? 'w-12 h-12 mx-auto' : 'px-4 py-3 justify-start'} text-base font-medium rounded-md transition-colors duration-200 ${
                     isActive
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <item.icon className={`h-6 w-6 ${collapsed ? '' : 'flex-shrink-0'}`} />
+                  <span className={`ml-3 transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden absolute' : 'opacity-100'}`}>
+                    {item.name}
+                  </span>
                 </Link>
               );
             })}
           </nav>
 
           {/* User Menu */}
-          <div className="border-t border-gray-200 p-4">
-            <div className="flex items-center mb-4">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                  <User className="h-4 w-4 text-blue-600" />
-                </div>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">
-                  {user?.first_name} {user?.last_name}
-                </p>
-                <p className="text-xs text-gray-500">{user?.email}</p>
-              </div>
-            </div>
-            <div className="space-y-1">
+          <div className="border-t border-gray-200 px-4 py-3">
+            <div className="flex flex-col space-y-2">
               <button
                 onClick={() => router.push('/profile')}
-                className="flex items-center w-full px-2 py-2 text-sm text-gray-600 rounded-md hover:bg-gray-100"
+                className={`flex items-center justify-center ${collapsed ? 'w-12 h-12 mx-auto' : 'px-4 py-3 justify-start'} text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors cursor-pointer`}
+                title="Settings"
               >
-                <Settings className="mr-2 h-4 w-4" />
-                Profile Settings
+                <Settings className={`h-6 w-6 ${collapsed ? '' : 'flex-shrink-0'}`} />
+                <span className={`ml-3 transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden absolute' : 'opacity-100'}`}>
+                  Settings
+                </span>
               </button>
+
               <button
                 onClick={handleLogout}
-                className="flex items-center w-full px-2 py-2 text-sm text-red-600 rounded-md hover:bg-red-50"
+                className={`flex items-center justify-center ${collapsed ? 'w-12 h-12 mx-auto' : 'px-4 py-3 justify-start'} text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer`}
+                title="Logout"
               >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
+                <LogOut className={`h-6 w-6 ${collapsed ? '' : 'flex-shrink-0'}`} />
+                <span className={`ml-3 transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden absolute' : 'opacity-100'}`}>
+                  Logout
+                </span>
               </button>
             </div>
-          </div>
+          </div> 
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="pl-64">
+      <div className={`${collapsed ? 'pl-20' : 'pl-64'} transition-all duration-300`}>
         {/* Top Bar */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="px-6 py-4">
