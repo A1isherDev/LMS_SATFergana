@@ -178,6 +178,25 @@ class FlashcardProgressViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    @extend_schema(
+        summary="List flashcard progress",
+        description="Retrieve a list of flashcard progress records based on user role. Students see their own progress, teachers/admins see all.",
+        tags=["Flashcards"],
+        parameters=[
+            OpenApiParameter(
+                name='flashcard',
+                type=OpenApiTypes.INT,
+                description='Filter by flashcard ID',
+                required=False
+            ),
+            OpenApiParameter(
+                name='mastery_level',
+                type=OpenApiTypes.INT,
+                description='Filter by mastery level (0-5)',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -205,6 +224,20 @@ class FlashcardProgressViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated()]
     
+    @extend_schema(
+        summary="Get due flashcards",
+        description="Get flashcards that are due for review based on spaced repetition algorithm.",
+        tags=["Flashcards"],
+        parameters=[
+            OpenApiParameter(
+                name='limit',
+                type=OpenApiTypes.INT,
+                description='Number of due flashcards to return',
+                required=False
+            )
+        ],
+        responses={200: FlashcardProgressDetailSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def due(self, request):
         """Get flashcards due for review for the current student."""
@@ -290,6 +323,167 @@ class FlashcardProgressViewSet(viewsets.ModelViewSet):
             {"detail": "Flashcard progress reset successfully"},
             status=status.HTTP_200_OK
         )
+    
+    @extend_schema(
+        summary="Get next review flashcard",
+        description="Get the next flashcard due for review in spaced repetition system.",
+        tags=["Flashcards"],
+        responses={200: FlashcardProgressDetailSerializer}
+    )
+    @action(detail=False, methods=['get'])
+    def next_review(self, request):
+        """Get the next flashcard due for review."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can access review queue"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get next due card
+        due_cards = FlashcardProgress.get_due_cards(request.user, limit=1)
+        
+        if not due_cards.exists():
+            return Response({"message": "No cards due for review"})
+        
+        next_card = due_cards.first()
+        serializer = FlashcardProgressDetailSerializer(next_card)
+        return Response(serializer.data)
+    
+    @extend_schema(
+        summary="Get flashcard progress",
+        description="Get current student's flashcard learning progress overview.",
+        tags=["Flashcards"],
+        responses={200: FlashcardProgressSerializer(many=True)}
+    )
+    @action(detail=False, methods=['get'])
+    def progress(self, request):
+        """Get current student's flashcard progress."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can view their progress"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        progress_records = FlashcardProgress.objects.filter(
+            student=request.user
+        ).order_by('-last_reviewed_at')[:50]  # Last 50 cards
+        
+        serializer = FlashcardProgressSerializer(progress_records, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Update flashcard progress",
+        description="Update flashcard progress after review. Handles spaced repetition algorithm.",
+        tags=["Flashcards"],
+        request=FlashcardReviewSerializer,
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'message': {'type': 'string'},
+                'next_review_date': {'type': 'string'},
+                'interval': {'type': 'integer'}
+            }
+        }}
+    )
+    @action(detail=True, methods=['post'])
+    def progress(self, request, pk=None):
+        """Update flashcard progress after review."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can update flashcard progress"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        flashcard = self.get_object()
+        
+        # Get or create progress record
+        progress, created = FlashcardProgress.objects.get_or_create(
+            student=request.user,
+            flashcard=flashcard,
+            defaults={
+                'mastery_level': 0,
+                'review_count': 0,
+                'ease_factor': 2.5,
+                'interval': 1,
+                'next_review_date': timezone.now().date()
+            }
+        )
+        
+        serializer = FlashcardReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Update progress based on review result
+        is_correct = serializer.validated_data['is_correct']
+        time_taken = serializer.validated_data.get('time_taken_seconds', 0)
+        
+        if is_correct:
+            if progress.mastery_level < 5:
+                progress.mastery_level += 1
+            progress.ease_factor = min(progress.ease_factor + 0.1, 3.0)
+            progress.interval = min(progress.interval * 2, 180)  # Max 6 months
+        else:
+            if progress.mastery_level > 0:
+                progress.mastery_level -= 1
+            progress.ease_factor = max(progress.ease_factor - 0.2, 1.3)
+            progress.interval = max(progress.interval // 2, 1)
+        
+        progress.review_count += 1
+        progress.last_reviewed_at = timezone.now()
+        progress.next_review_date = timezone.now().date() + timezone.timedelta(days=progress.interval)
+        progress.total_time_seconds += time_taken
+        progress.save()
+        
+        return Response({
+            'message': 'Progress updated successfully',
+            'mastery_level': progress.mastery_level,
+            'next_review_date': progress.next_review_date,
+            'interval': progress.interval
+        })
+
+    @extend_schema(
+        summary="Get review session",
+        description="Get current review session details and statistics.",
+        tags=["Flashcards"],
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'due_count': {'type': 'integer'},
+                'session_stats': {'type': 'object'}
+            }
+        }}
+    )
+    @action(detail=False, methods=['get'])
+    def review_session(self, request):
+        """Get current review session details."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can access review sessions"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        due_count = FlashcardProgress.objects.filter(
+            student=request.user,
+            next_review_date__lte=timezone.now().date()
+        ).count()
+        
+        # Get recent session stats
+        recent_reviews = FlashcardProgress.objects.filter(
+            student=request.user,
+            last_reviewed_at__gte=timezone.now() - timezone.timedelta(hours=1)
+        )
+        
+        session_stats = {
+            'reviews_last_hour': recent_reviews.count(),
+            'correct_last_hour': recent_reviews.filter(mastery_level__gte=3).count(),
+            'average_time': recent_reviews.aggregate(
+                avg_time=Avg('total_time_seconds')
+            )['avg_time'] or 0
+        }
+        
+        return Response({
+            'due_count': due_count,
+            'session_stats': session_stats
+        })
     
     @extend_schema(
         summary="Get my flashcard stats",

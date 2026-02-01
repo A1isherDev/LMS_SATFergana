@@ -11,5 +11,5 @@ router.register(r'flashcards', FlashcardViewSet, basename='flashcard')
 router.register(r'flashcard-progress', FlashcardProgressViewSet, basename='flashcard-progress')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('flashcards/', include(router.urls)),
 ]

@@ -19,8 +19,9 @@ router.register(r'study-sessions', StudySessionViewSet, basename='study-sessions
 # AnalyticsViewSet is a GenericViewSet with custom actions, no need to register with router
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('analytics/', include(router.urls)),
     path('dashboard/stats/', dashboard_stats, name='dashboard-stats'),
     # AnalyticsViewSet actions (since it's a GenericViewSet)
-    path('student_summary/', AnalyticsViewSet.as_view({'get': 'student_summary'}), name='analytics-student-summary'),
+    path('analytics/student_summary/', AnalyticsViewSet.as_view({'get': 'student_summary'}), name='analytics-student-summary'),
+    path('analytics/class_analytics/<int:class_id>/', AnalyticsViewSet.as_view({'get': 'class_analytics'}), name='analytics-class-analytics'),
 ]

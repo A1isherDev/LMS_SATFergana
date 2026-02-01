@@ -11,5 +11,5 @@ router.register(r'mock-exams', MockExamViewSet, basename='mock-exam')
 router.register(r'mock-exam-attempts', MockExamAttemptViewSet, basename='mock-exam-attempt')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('mock-exams/', include(router.urls)),
 ]

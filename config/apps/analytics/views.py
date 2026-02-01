@@ -148,6 +148,23 @@ class StudentProgressViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = ProgressChartSerializer(chart_data, many=True)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Update progress",
+        description="Update today's progress for the current student with study metrics.",
+        tags=["Analytics"],
+        request={
+            'type': 'object',
+            'properties': {
+                'date': {
+                    'type': 'string',
+                    'format': 'date',
+                    'description': 'Date to update (YYYY-MM-DD format, defaults to today)',
+                    'required': False
+                }
+            }
+        },
+        responses={200: StudentProgressSerializer}
+    )
     @action(detail=False, methods=['post'])
     def update_progress(self, request):
         """Update today's progress for current student."""
@@ -180,9 +197,30 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['student', 'area_type']
+    filterset_fields = ['area_type', 'subcategory']
+    ordering_fields = ['weakness_score', 'created_at']
     ordering = ['-weakness_score']
     
+    @extend_schema(
+        summary="List weak areas",
+        description="Retrieve a list of weak areas based on user role. Students see their own weak areas, teachers/admins see all.",
+        tags=["Analytics"],
+        parameters=[
+            OpenApiParameter(
+                name='area_type',
+                type=OpenApiTypes.STR,
+                enum=['MATH', 'READING', 'WRITING'],
+                description='Filter by area type',
+                required=False
+            ),
+            OpenApiParameter(
+                name='subcategory',
+                type=OpenApiTypes.STR,
+                description='Filter by subcategory',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -200,6 +238,12 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
         """Return appropriate serializer based on action."""
         return WeakAreaSerializer
     
+    @extend_schema(
+        summary="Get my weak areas",
+        description="Get current student's weak areas with analysis.",
+        tags=["Analytics"],
+        responses={200: WeakAreaAnalysisSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def my_weak_areas(self, request):
         """Get current student's weak areas."""
@@ -226,6 +270,12 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = WeakAreaAnalysisSerializer(analysis_data, many=True)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Analyze weak areas",
+        description="Trigger weak area analysis for the current student based on recent performance.",
+        tags=["Analytics"],
+        responses={200: WeakAreaSerializer(many=True)}
+    )
     @action(detail=False, methods=['post'])
     def analyze_weak_areas(self, request):
         """Trigger weak area analysis for current student."""
@@ -249,6 +299,29 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @extend_schema(
+        summary="Start study session",
+        description="Start a new study session for tracking study time and progress.",
+        tags=["Analytics"],
+        request={
+            'type': 'object',
+            'properties': {
+                'session_type': {
+                    'type': 'string',
+                    'enum': ['PRACTICE', 'HOMEWORK', 'MOCK_EXAM', 'FLASHCARDS'],
+                    'description': 'Type of study session'
+                }
+            }
+        },
+        responses={201: {
+            'type': 'object',
+            'properties': {
+                'session_id': {'type': 'integer'},
+                'session_type': {'type': 'string'},
+                'started_at': {'type': 'string'}
+            }
+        }}
+    )
     @action(detail=False, methods=['post'])
     def start_study_session(self, request):
         """Start a new study session."""
@@ -287,6 +360,30 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @extend_schema(
+        summary="End study session",
+        description="End the current study session and update study progress.",
+        tags=["Analytics"],
+        request={
+            'type': 'object',
+            'properties': {
+                'session_id': {
+                    'type': 'integer',
+                    'description': 'Specific session ID to end (optional)',
+                    'required': False
+                }
+            }
+        },
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'session_id': {'type': 'integer'},
+                'duration_minutes': {'type': 'integer'},
+                'session_type': {'type': 'string'},
+                'updated_streak': {'type': 'integer'}
+            }
+        }}
+    )
     @action(detail=False, methods=['post'])
     def end_study_session(self, request):
         """End the current study session."""
@@ -355,9 +452,29 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @extend_schema(
+        summary="Get active study session",
+        description="Get the currently active study session for the student.",
+        tags=["Analytics"],
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'session_id': {'type': 'integer'},
+                'session_type': {'type': 'string'},
+                'started_at': {'type': 'string'},
+                'current_duration_minutes': {'type': 'integer'}
+            }
+        }}
+    )
     @action(detail=False, methods=['get'])
     def active_session(self, request):
-        """Get current active study session."""
+        """Get the currently active study session."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can view their active sessions"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         try:
             active_session = StudySession.objects.filter(
                 student=request.user,
@@ -371,12 +488,10 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
             current_duration = int((timezone.now() - active_session.started_at).total_seconds() / 60)
             
             return Response({
-                'active_session': {
-                    'id': active_session.id,
-                    'session_type': active_session.session_type,
-                    'started_at': active_session.started_at,
-                    'current_duration_minutes': current_duration
-                }
+                'session_id': active_session.id,
+                'session_type': active_session.session_type,
+                'started_at': active_session.started_at,
+                'current_duration_minutes': current_duration
             })
             
         except Exception as e:
@@ -424,6 +539,26 @@ class StudySessionViewSet(viewsets.ModelViewSet):
     filterset_fields = ['student', 'session_type']
     ordering = ['-started_at']
     
+    @extend_schema(
+        summary="List study sessions",
+        description="Retrieve a list of study sessions based on user role. Students see their own sessions, teachers/admins see all.",
+        tags=["Analytics"],
+        parameters=[
+            OpenApiParameter(
+                name='student',
+                type=OpenApiTypes.INT,
+                description='Filter by student ID',
+                required=False
+            ),
+            OpenApiParameter(
+                name='session_type',
+                type=OpenApiTypes.STR,
+                enum=['PRACTICE', 'HOMEWORK', 'MOCK_EXAM', 'FLASHCARDS'],
+                description='Filter by session type',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user

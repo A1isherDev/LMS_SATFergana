@@ -270,6 +270,25 @@ class QuestionAttemptViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    @extend_schema(
+        summary="List question attempts",
+        description="Retrieve a list of question attempts based on user role. Students see their own attempts, teachers/admins see all.",
+        tags=["Question Bank"],
+        parameters=[
+            OpenApiParameter(
+                name='question',
+                type=OpenApiTypes.INT,
+                description='Filter by question ID',
+                required=False
+            ),
+            OpenApiParameter(
+                name='is_correct',
+                type=OpenApiTypes.BOOL,
+                description='Filter by correctness',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
@@ -354,6 +373,20 @@ class QuestionAttemptViewSet(viewsets.ModelViewSet):
         serializer = StudentProgressSerializer(progress_data, many=True)
         return Response(serializer.data)
     
+    @extend_schema(
+        summary="Get recent attempts",
+        description="Get recent question attempts for the current student.",
+        tags=["Question Bank"],
+        parameters=[
+            OpenApiParameter(
+                name='limit',
+                type=OpenApiTypes.INT,
+                description='Number of recent attempts to return',
+                required=False
+            )
+        ],
+        responses={200: QuestionAttemptSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def recent(self, request):
         """Get recent attempts for the current student."""

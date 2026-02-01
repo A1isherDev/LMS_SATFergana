@@ -324,6 +324,25 @@ class MockExamAttemptViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     
+    @extend_schema(
+        summary="List mock exam attempts",
+        description="Retrieve a list of mock exam attempts based on user role. Students see their own attempts, teachers/admins see all.",
+        tags=["Mock Exams"],
+        parameters=[
+            OpenApiParameter(
+                name='mock_exam',
+                type=OpenApiTypes.INT,
+                description='Filter by mock exam ID',
+                required=False
+            ),
+            OpenApiParameter(
+                name='is_completed',
+                type=OpenApiTypes.BOOL,
+                description='Filter by completion status',
+                required=False
+            )
+        ]
+    )
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user

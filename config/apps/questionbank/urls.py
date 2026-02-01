@@ -11,5 +11,5 @@ router.register(r'questions', QuestionViewSet, basename='question')
 router.register(r'attempts', QuestionAttemptViewSet, basename='question-attempt')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('questionbank/', include(router.urls)),
 ]
