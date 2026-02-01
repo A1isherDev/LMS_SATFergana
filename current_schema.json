@@ -1,0 +1,17 @@
+﻿
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {111, 112, 101, 110...}
+RawContent        : HTTP/1.1 200 OK
+                    Content-Disposition: inline; filename="SAT Fergana API.yaml"
+                    Vary: Accept, origin
+                    Allow: GET, HEAD, OPTIONS
+                    X-Frame-Options: DENY
+                    X-Content-Type-Options: nosniff
+                    Referrer-Policy:...
+Headers           : {[Content-Disposition, inline; filename="SAT Fergana API.yaml"], [Vary, Accept, origin], [Allow, GET, HEAD, OPTIONS], [X-Frame-Options, DENY]...}
+RawContentLength  : 44467
+
+
+
