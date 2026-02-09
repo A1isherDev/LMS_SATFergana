@@ -1,0 +1,713 @@
+  console.error
+    Backend health check failed: TypeError: (0 , _api.healthCheck) is not a function
+        at checkBackendHealth (D:\SAT_Fergana\LMS_SATFergana\frontend\src\contexts\AuthContext.tsx:47:44)
+        at checkBackendHealth (D:\SAT_Fergana\LMS_SATFergana\frontend\src\contexts\AuthContext.tsx:55:5)
+        at Object.react_stack_bottom_frame (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+        at runWithFiberInDEV (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+        at commitHookEffectListMount (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+        at commitHookPassiveMountEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+        at commitPassiveMountOnFiber (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+        at recursivelyTraversePassiveMountEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+        at commitPassiveMountOnFiber (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+        at flushPassiveEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+        at flushPendingEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18358:14)
+        at performSyncWorkOnRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18969:11)
+        at flushSyncWorkAcrossRoots_impl (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18814:21)
+        at flushSpawnedWork (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18334:9)
+        at commitRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17955:9)
+        at performWorkOnRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:16667:15)
+        at performWorkOnRootViaSchedulerTask (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18957:7)
+        at flushActQueue (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react\cjs\react.development.js:590:34)
+        at process.env.NODE_ENV.exports.act (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react\cjs\react.development.js:884:10)
+        at D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+        at renderRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+        at render (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+        at Object.<anonymous> (D:\SAT_Fergana\LMS_SATFergana\frontend\src\__tests__\Login.test.tsx:34:15)
+        at Promise.finally.completed (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+        at _callCircusTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+        at _runTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+        at D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+        at _runTestsForDescribeBlock (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+        at _runTestsForDescribeBlock (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+        at run (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+        at runAndTransformResultsToJestFormat (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+        at jestAdapter (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\runner.js:101:19)
+        at runTestInternal (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-runner\build\index.js:275:16)
+        at runTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-runner\build\index.js:343:7)
+
+    [0m [90m 48 |[39m         setIsBackendHealthy(isHealthy)[33m;[39m
+     [90m 49 |[39m       } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 50 |[39m         console[33m.[39merror([32m'Backend health check failed:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 51 |[39m         setIsBackendHealthy([36mfalse[39m)[33m;[39m
+     [90m 52 |[39m       }
+     [90m 53 |[39m     }[33m;[39m[0m
+
+      at error (src/contexts/AuthContext.tsx:50:17)
+      at checkBackendHealth (src/contexts/AuthContext.tsx:55:5)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25989:20)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom-client.development.js:13249:29)
+      at commitHookPassiveMountEffects (node_modules/react-dom/cjs/react-dom-client.development.js:13336:11)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:15484:13)
+      at recursivelyTraversePassiveMountEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15439:11)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:15519:11)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18432:9)
+      at flushPendingEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18358:14)
+      at performSyncWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:18969:11)
+      at flushSyncWorkAcrossRoots_impl (node_modules/react-dom/cjs/react-dom-client.development.js:18814:21)
+      at flushSpawnedWork (node_modules/react-dom/cjs/react-dom-client.development.js:18334:9)
+      at commitRoot (node_modules/react-dom/cjs/react-dom-client.development.js:17955:9)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16667:15)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:884:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:291:10)
+      at Object.<anonymous> (src/__tests__/Login.test.tsx:34:15)
+
+  console.error
+    Backend health check failed: TypeError: (0 , _api.healthCheck) is not a function
+        at checkBackendHealth (D:\SAT_Fergana\LMS_SATFergana\frontend\src\contexts\AuthContext.tsx:47:44)
+        at checkBackendHealth (D:\SAT_Fergana\LMS_SATFergana\frontend\src\contexts\AuthContext.tsx:55:5)
+        at Object.react_stack_bottom_frame (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+        at runWithFiberInDEV (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+        at commitHookEffectListMount (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+        at commitHookPassiveMountEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+        at commitPassiveMountOnFiber (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+        at recursivelyTraversePassiveMountEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+        at commitPassiveMountOnFiber (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+        at flushPassiveEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+        at flushPendingEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18358:14)
+        at performSyncWorkOnRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18969:11)
+        at flushSyncWorkAcrossRoots_impl (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18814:21)
+        at flushSpawnedWork (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18334:9)
+        at commitRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17955:9)
+        at performWorkOnRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:16667:15)
+        at performWorkOnRootViaSchedulerTask (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18957:7)
+        at flushActQueue (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react\cjs\react.development.js:590:34)
+        at process.env.NODE_ENV.exports.act (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react\cjs\react.development.js:884:10)
+        at D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+        at renderRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+        at render (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+        at Object.<anonymous> (D:\SAT_Fergana\LMS_SATFergana\frontend\src\__tests__\Login.test.tsx:46:15)
+        at Promise.finally.completed (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+        at _callCircusTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+        at _runTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+        at D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+        at _runTestsForDescribeBlock (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+        at _runTestsForDescribeBlock (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+        at run (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+        at runAndTransformResultsToJestFormat (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+        at jestAdapter (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\runner.js:101:19)
+        at runTestInternal (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-runner\build\index.js:275:16)
+        at runTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-runner\build\index.js:343:7)
+
+    [0m [90m 48 |[39m         setIsBackendHealthy(isHealthy)[33m;[39m
+     [90m 49 |[39m       } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 50 |[39m         console[33m.[39merror([32m'Backend health check failed:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 51 |[39m         setIsBackendHealthy([36mfalse[39m)[33m;[39m
+     [90m 52 |[39m       }
+     [90m 53 |[39m     }[33m;[39m[0m
+
+      at error (src/contexts/AuthContext.tsx:50:17)
+      at checkBackendHealth (src/contexts/AuthContext.tsx:55:5)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25989:20)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom-client.development.js:13249:29)
+      at commitHookPassiveMountEffects (node_modules/react-dom/cjs/react-dom-client.development.js:13336:11)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:15484:13)
+      at recursivelyTraversePassiveMountEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15439:11)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:15519:11)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18432:9)
+      at flushPendingEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18358:14)
+      at performSyncWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:18969:11)
+      at flushSyncWorkAcrossRoots_impl (node_modules/react-dom/cjs/react-dom-client.development.js:18814:21)
+      at flushSpawnedWork (node_modules/react-dom/cjs/react-dom-client.development.js:18334:9)
+      at commitRoot (node_modules/react-dom/cjs/react-dom-client.development.js:17955:9)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16667:15)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:884:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:291:10)
+      at Object.<anonymous> (src/__tests__/Login.test.tsx:46:15)
+
+  console.error
+    Backend health check failed: TypeError: (0 , _api.healthCheck) is not a function
+        at checkBackendHealth (D:\SAT_Fergana\LMS_SATFergana\frontend\src\contexts\AuthContext.tsx:47:44)
+        at checkBackendHealth (D:\SAT_Fergana\LMS_SATFergana\frontend\src\contexts\AuthContext.tsx:55:5)
+        at Object.react_stack_bottom_frame (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+        at runWithFiberInDEV (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+        at commitHookEffectListMount (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+        at commitHookPassiveMountEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+        at commitPassiveMountOnFiber (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+        at recursivelyTraversePassiveMountEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11)
+        at commitPassiveMountOnFiber (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:15519:11)
+        at flushPassiveEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18432:9)
+        at flushPendingEffects (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18358:14)
+        at performSyncWorkOnRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18969:11)
+        at flushSyncWorkAcrossRoots_impl (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18814:21)
+        at flushSpawnedWork (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18334:9)
+        at commitRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:17955:9)
+        at performWorkOnRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:16667:15)
+        at performWorkOnRootViaSchedulerTask (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react-dom\cjs\react-dom-client.development.js:18957:7)
+        at flushActQueue (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react\cjs\react.development.js:590:34)
+        at process.env.NODE_ENV.exports.act (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\react\cjs\react.development.js:884:10)
+        at D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\act-compat.js:46:25
+        at renderRoot (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\pure.js:189:26)
+        at render (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\@testing-library\react\dist\pure.js:291:10)
+        at Object.<anonymous> (D:\SAT_Fergana\LMS_SATFergana\frontend\src\__tests__\Login.test.tsx:63:15)
+        at Promise.finally.completed (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+        at _callCircusTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+        at _runTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+        at D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+        at _runTestsForDescribeBlock (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+        at _runTestsForDescribeBlock (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+        at run (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+        at runAndTransformResultsToJestFormat (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+        at jestAdapter (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-circus\build\runner.js:101:19)
+        at runTestInternal (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-runner\build\index.js:275:16)
+        at runTest (D:\SAT_Fergana\LMS_SATFergana\frontend\node_modules\jest-runner\build\index.js:343:7)
+
+    [0m [90m 48 |[39m         setIsBackendHealthy(isHealthy)[33m;[39m
+     [90m 49 |[39m       } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 50 |[39m         console[33m.[39merror([32m'Backend health check failed:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 51 |[39m         setIsBackendHealthy([36mfalse[39m)[33m;[39m
+     [90m 52 |[39m       }
+     [90m 53 |[39m     }[33m;[39m[0m
+
+      at error (src/contexts/AuthContext.tsx:50:17)
+      at checkBackendHealth (src/contexts/AuthContext.tsx:55:5)
+      at Object.react_stack_bottom_frame (node_modules/react-dom/cjs/react-dom-client.development.js:25989:20)
+      at runWithFiberInDEV (node_modules/react-dom/cjs/react-dom-client.development.js:874:13)
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom-client.development.js:13249:29)
+      at commitHookPassiveMountEffects (node_modules/react-dom/cjs/react-dom-client.development.js:13336:11)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:15484:13)
+      at recursivelyTraversePassiveMountEffects (node_modules/react-dom/cjs/react-dom-client.development.js:15439:11)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom-client.development.js:15519:11)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18432:9)
+      at flushPendingEffects (node_modules/react-dom/cjs/react-dom-client.development.js:18358:14)
+      at performSyncWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:18969:11)
+      at flushSyncWorkAcrossRoots_impl (node_modules/react-dom/cjs/react-dom-client.development.js:18814:21)
+      at flushSpawnedWork (node_modules/react-dom/cjs/react-dom-client.development.js:18334:9)
+      at commitRoot (node_modules/react-dom/cjs/react-dom-client.development.js:17955:9)
+      at performWorkOnRoot (node_modules/react-dom/cjs/react-dom-client.development.js:16667:15)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-dom/cjs/react-dom-client.development.js:18957:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:590:34)
+      at process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:884:10)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:291:10)
+      at Object.<anonymous> (src/__tests__/Login.test.tsx:63:15)
+
+FAIL src/__tests__/Login.test.tsx
+  LoginPage
+    × renders login form (260 ms)
+    × handles user input (43 ms)
+    × submits the form with valid credentials (50 ms)
+
+  ● LoginPage › renders login form
+
+    TestingLibraryElementError: Unable to find an element with the placeholder text of: /email address/i
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"max-w-md w-full space-y-8"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-center"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-book-open h-6 w-6 text-blue-600"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 7v14"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</div>[39m
+              [36m<h2[39m
+                [33mclass[39m=[32m"mt-6 text-3xl font-extrabold text-gray-900"[39m
+              [36m>[39m
+                [0mSign in to SAT Fergana[0m
+              [36m</h2>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"mt-2 text-sm text-gray-600"[39m
+              [36m>[39m
+                [0mAccess your personalized SAT preparation dashboard[0m
+              [36m</p>[39m
+            [36m</div>[39m
+            [36m<form[39m
+              [33mclass[39m=[32m"mt-8 space-y-6"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium text-gray-700"[39m
+                    [33mfor[39m=[32m"email"[39m
+                  [36m>[39m
+                    [0mEmail address[0m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33mautocomplete[39m=[32m"email"[39m
+                    [33mclass[39m=[32m"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"[39m
+                    [33mname[39m=[32m"email"[39m
+                    [33mplaceholder[39m=[32m"Enter your email"[39m
+                    [33mtype[39m=[32m"email"[39m
+                  [36m/>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium text-gray-700"[39m
+                    [33mfor[39m=[32m"password"[39m
+                  [36m>[39m
+                    [0mPassword[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"mt-1 relative"[39m
+                  [36m>[39m
+                    [36m<input[39m
+                      [33mautocomplete[39m=[32m"current-password"[39m
+                      [33mclass[39m=[32m"block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"[39m
+                      [33mname[39m=[32m"password"[39m
+                      [33mplaceholder[39m=[32m"Enter your password"[39m
+                      [33mtype[39m=[32m"password"[39m
+                    [36m/>[39m
+                    [36m<button[39m
+                      [33mclass[39m=[32m"absolute inset-y-0 right-0 pr-3 flex items-center"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-eye h-4 w-4 text-gray-400"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"[39m
+                        [36m/>[39m
+                        [36m<circle[39m
+                          [33mcx[39m=[32m"12"[39m
+                          [33mcy[39m=[32m"12"[39m
+                          [33mr[39m=[32m"3"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"[39m
+                  [33mtype[39m=[32m"submit"[39m
+                [36m>[39m
+                  [0mSign in[0m
+                [36m</button>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"text-center"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"text-sm text-gray-600"[39m
+                [36m>[39m
+                  [0mDon't have an account?[0m
+                  [0m [0m
+                  [36m<a[39m
+                    [33mclass[39m=[32m"font-medium text-blue-600 hover:text-blue-500"[39m
+                    [33mhref[39m=[32m"/register"[39m
+                  [36m>[39m
+                    [0mRegister here[0m
+                  [36m</a>[39m
+                [36m</span>[39m
+              [36m</div>[39m
+            [36m</form>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+    [0m [90m 38 |[39m         )[33m;[39m
+     [90m 39 |[39m
+    [31m[1m>[22m[39m[90m 40 |[39m         expect(screen[33m.[39mgetByPlaceholderText([35m/email address/i[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m    |[39m                       [31m[1m^[22m[39m
+     [90m 41 |[39m         expect(screen[33m.[39mgetByPlaceholderText([35m/password/i[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m 42 |[39m         expect(screen[33m.[39mgetByRole([32m'button'[39m[33m,[39m { name[33m:[39m [35m/sign in/i[39m }))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m 43 |[39m     })[33m;[39m[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+      at Object.getByPlaceholderText (src/__tests__/Login.test.tsx:40:23)
+
+  ● LoginPage › handles user input
+
+    TestingLibraryElementError: Unable to find an element with the placeholder text of: /email address/i
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"max-w-md w-full space-y-8"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-center"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-book-open h-6 w-6 text-blue-600"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 7v14"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</div>[39m
+              [36m<h2[39m
+                [33mclass[39m=[32m"mt-6 text-3xl font-extrabold text-gray-900"[39m
+              [36m>[39m
+                [0mSign in to SAT Fergana[0m
+              [36m</h2>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"mt-2 text-sm text-gray-600"[39m
+              [36m>[39m
+                [0mAccess your personalized SAT preparation dashboard[0m
+              [36m</p>[39m
+            [36m</div>[39m
+            [36m<form[39m
+              [33mclass[39m=[32m"mt-8 space-y-6"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium text-gray-700"[39m
+                    [33mfor[39m=[32m"email"[39m
+                  [36m>[39m
+                    [0mEmail address[0m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33mautocomplete[39m=[32m"email"[39m
+                    [33mclass[39m=[32m"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"[39m
+                    [33mname[39m=[32m"email"[39m
+                    [33mplaceholder[39m=[32m"Enter your email"[39m
+                    [33mtype[39m=[32m"email"[39m
+                  [36m/>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium text-gray-700"[39m
+                    [33mfor[39m=[32m"password"[39m
+                  [36m>[39m
+                    [0mPassword[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"mt-1 relative"[39m
+                  [36m>[39m
+                    [36m<input[39m
+                      [33mautocomplete[39m=[32m"current-password"[39m
+                      [33mclass[39m=[32m"block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"[39m
+                      [33mname[39m=[32m"password"[39m
+                      [33mplaceholder[39m=[32m"Enter your password"[39m
+                      [33mtype[39m=[32m"password"[39m
+                    [36m/>[39m
+                    [36m<button[39m
+                      [33mclass[39m=[32m"absolute inset-y-0 right-0 pr-3 flex items-center"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-eye h-4 w-4 text-gray-400"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"[39m
+                        [36m/>[39m
+                        [36m<circle[39m
+                          [33mcx[39m=[32m"12"[39m
+                          [33mcy[39m=[32m"12"[39m
+                          [33mr[39m=[32m"3"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"[39m
+                  [33mtype[39m=[32m"submit"[39m
+                [36m>[39m
+                  [0mSign in[0m
+                [36m</button>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"text-center"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"text-sm text-gray-600"[39m
+                [36m>[39m
+                  [0mDon't have an account?[0m
+                  [0m [0m
+                  [36m<a[39m
+                    [33mclass[39m=[32m"font-medium text-blue-600 hover:text-blue-500"[39m
+                    [33mhref[39m=[32m"/register"[39m
+                  [36m>[39m
+                    [0mRegister here[0m
+                  [36m</a>[39m
+                [36m</span>[39m
+              [36m</div>[39m
+            [36m</form>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+    [0m [90m 50 |[39m         )[33m;[39m
+     [90m 51 |[39m
+    [31m[1m>[22m[39m[90m 52 |[39m         [36mconst[39m emailInput [33m=[39m screen[33m.[39mgetByPlaceholderText([35m/email address/i[39m)[33m;[39m
+     [90m    |[39m                                   [31m[1m^[22m[39m
+     [90m 53 |[39m         [36mconst[39m passwordInput [33m=[39m screen[33m.[39mgetByPlaceholderText([35m/password/i[39m)[33m;[39m
+     [90m 54 |[39m
+     [90m 55 |[39m         fireEvent[33m.[39mchange(emailInput[33m,[39m { target[33m:[39m { value[33m:[39m [32m'test@example.com'[39m } })[33m;[39m[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+      at Object.getByPlaceholderText (src/__tests__/Login.test.tsx:52:35)
+
+  ● LoginPage › submits the form with valid credentials
+
+    TestingLibraryElementError: Unable to find an element with the placeholder text of: /email address/i
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"max-w-md w-full space-y-8"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-center"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-book-open h-6 w-6 text-blue-600"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M12 7v14"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</div>[39m
+              [36m<h2[39m
+                [33mclass[39m=[32m"mt-6 text-3xl font-extrabold text-gray-900"[39m
+              [36m>[39m
+                [0mSign in to SAT Fergana[0m
+              [36m</h2>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"mt-2 text-sm text-gray-600"[39m
+              [36m>[39m
+                [0mAccess your personalized SAT preparation dashboard[0m
+              [36m</p>[39m
+            [36m</div>[39m
+            [36m<form[39m
+              [33mclass[39m=[32m"mt-8 space-y-6"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium text-gray-700"[39m
+                    [33mfor[39m=[32m"email"[39m
+                  [36m>[39m
+                    [0mEmail address[0m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33mautocomplete[39m=[32m"email"[39m
+                    [33mclass[39m=[32m"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"[39m
+                    [33mname[39m=[32m"email"[39m
+                    [33mplaceholder[39m=[32m"Enter your email"[39m
+                    [33mtype[39m=[32m"email"[39m
+                  [36m/>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium text-gray-700"[39m
+                    [33mfor[39m=[32m"password"[39m
+                  [36m>[39m
+                    [0mPassword[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"mt-1 relative"[39m
+                  [36m>[39m
+                    [36m<input[39m
+                      [33mautocomplete[39m=[32m"current-password"[39m
+                      [33mclass[39m=[32m"block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"[39m
+                      [33mname[39m=[32m"password"[39m
+                      [33mplaceholder[39m=[32m"Enter your password"[39m
+                      [33mtype[39m=[32m"password"[39m
+                    [36m/>[39m
+                    [36m<button[39m
+                      [33mclass[39m=[32m"absolute inset-y-0 right-0 pr-3 flex items-center"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-eye h-4 w-4 text-gray-400"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"[39m
+                        [36m/>[39m
+                        [36m<circle[39m
+                          [33mcx[39m=[32m"12"[39m
+                          [33mcy[39m=[32m"12"[39m
+                          [33mr[39m=[32m"3"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<div>[39m
+                [36m<button[39m
+                  [33mclass[39m=[32m"group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"[39m
+                  [33mtype[39m=[32m"submit"[39m
+                [36m>[39m
+                  [0mSign in[0m
+                [36m</button>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"text-center"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"text-sm text-gray-600"[39m
+                [36m>[39m
+                  [0mDon't have an account?[0m
+                  [0m [0m
+                  [36m<a[39m
+                    [33mclass[39m=[32m"font-medium text-blue-600 hover:text-blue-500"[39m
+                    [33mhref[39m=[32m"/register"[39m
+                  [36m>[39m
+                    [0mRegister here[0m
+                  [36m</a>[39m
+                [36m</span>[39m
+              [36m</div>[39m
+            [36m</form>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+    [0m [90m 67 |[39m         )[33m;[39m
+     [90m 68 |[39m
+    [31m[1m>[22m[39m[90m 69 |[39m         [36mconst[39m emailInput [33m=[39m screen[33m.[39mgetByPlaceholderText([35m/email address/i[39m)[33m;[39m
+     [90m    |[39m                                   [31m[1m^[22m[39m
+     [90m 70 |[39m         [36mconst[39m passwordInput [33m=[39m screen[33m.[39mgetByPlaceholderText([35m/password/i[39m)[33m;[39m
+     [90m 71 |[39m         [36mconst[39m submitButton [33m=[39m screen[33m.[39mgetByRole([32m'button'[39m[33m,[39m { name[33m:[39m [35m/sign in/i[39m })[33m;[39m
+     [90m 72 |[39m[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+      at Object.getByPlaceholderText (src/__tests__/Login.test.tsx:69:35)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 3 total
+Snapshots:   0 total
+Time:        2.683 s, estimated 3 s
+Ran all test suites matching src/__tests__/Login.test.tsx.

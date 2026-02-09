@@ -1,0 +1,117 @@
+exam:
+  id: sat_uzbekistan_practice_1
+  title: SAT Uzbekistan Practice Test 1
+  source:
+    file: BK-Practise-Test-1 (2).pdf
+    citation: turn0file0
+  description: >
+    Structured exam specification derived from SAT Uzbekistan practice materials.
+    Designed for automated exam generation, validation, and testing pipelines.
+  grading:
+    type: multiple_choice
+    scoring:
+      correct: 1
+      incorrect: 0
+      unanswered: 0
+  modules:
+    - id: module_1
+      title: Module 1
+      questions:
+        - id: m1_q1
+          type: multiple_choice
+          prompt: "If a = 7, what is the value of a + 20?"
+          choices:
+            A: "13"
+            B: "20"
+            C: "27"
+            D: "34"
+          correct: "C"
+          source_page: 1
+
+        - id: m1_q2
+          type: multiple_choice
+          prompt: >
+            Data set X: 5, 9, 13
+            Data set Y: 6, 9, 13, 27
+            Which statement correctly compares the mean of data set X and the mean of data set Y?
+          choices:
+            A: "The mean of data set X is greater than the mean of data set Y."
+            B: "The mean of data set X is less than the mean of data set Y."
+            C: "The means of data sets X and Y are equal."
+            D: "There is not enough information to compare the means."
+          correct: "B"
+          source_page: 1
+
+        - id: m1_q3
+          type: multiple_choice
+          prompt: >
+            Right triangles PQR and STU are similar, where P corresponds to S.
+            If the measure of angle Q is 18°, what is the measure of angle S?
+          choices:
+            A: "18°"
+            B: "72°"
+            C: "82°"
+            D: "162°"
+          correct: "A"
+          source_page: 2
+
+        - id: m1_q4
+          type: multiple_choice
+          prompt: >
+            A rocket contained 467,000 kilograms of propellant before launch.
+            Exactly 21 seconds after launch, 362,105 kg remained.
+            On average, approximately how much propellant did the rocket burn each second after launch?
+          choices:
+            A: "4,095"
+            B: "17,243"
+            C: "39,481"
+            D: "104,895"
+          correct: "B"
+          source_page: 2
+
+        - id: m1_q5
+          type: multiple_choice
+          prompt: >
+            The solution to the given system of equations is (a, b).
+            4a = 20
+            -3b + a = -7
+            What is the value of a + b?
+          choices:
+            A: "-27"
+            B: "-13"
+            C: "13"
+            D: "27"
+          correct: "C"
+          source_page: 2
+
+    - id: module_2
+      title: Module 2
+      questions:
+        - id: m2_q1
+          type: multiple_choice
+          prompt: >
+            There are 55 students in Spanish club. A sample of the students was surveyed,
+            and 20% reported they intend to enroll in a new study program.
+            Based on this survey, which is the best estimate of the total number of students
+            who intend to enroll?
+          choices:
+            A: "11"
+            B: "20"
+            C: "44"
+            D: "55"
+          correct: "A"
+          source_page: 8
+
+        - id: m2_q2
+          type: multiple_choice
+          prompt: >
+            A machine makes large boxes or small boxes, one at a time, for a total of 700 minutes.
+            Each large box takes 10 minutes; each small box takes 5 minutes.
+            Which equation represents the possible number of large boxes x and small boxes y?
+          choices:
+            A: "5x + 10y = 700"
+            B: "10x + 5y = 700"
+            C: "(x + y)(10 + 5) = 700"
+            D: "(10 + x)(5 + y) = 700"
+          correct: "B"
+          source_page: 8

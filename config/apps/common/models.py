@@ -44,6 +44,8 @@ class SoftDeleteModel(models.Model):
         """Soft delete by setting deleted_at timestamp."""
         self.deleted_at = timezone.now()
         self.save(using=using)
+        # Return expected value for Django delete method
+        return (1, {})
     
     def restore(self):
         """Restore a soft-deleted object."""

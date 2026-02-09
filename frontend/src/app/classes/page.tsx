@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '../../components/AuthGuard';
 import DashboardLayout from '../../components/DashboardLayout';
-import { 
-  Users, 
-  Calendar, 
-  Award, 
+import {
+  Users,
+  Award,
   BookOpen,
   Plus,
   Search,
@@ -16,7 +15,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDate, getSubjectColor } from '../../utils/helpers';
+import { formatDate } from '../../utils/helpers';
 import { classesApi } from '../../utils/api';
 
 interface Teacher {
@@ -74,11 +73,11 @@ export default function ClassesPage() {
     const fetchClasses = async () => {
       try {
         if (user?.role === 'TEACHER') {
-          const response = await classesApi.getClasses() as any;
-          setClasses(response.results || response);
+          const response = await classesApi.getClasses() as unknown as { results: Class[] } | Class[];
+          setClasses('results' in response ? response.results : response);
         } else if (user?.role === 'STUDENT') {
-          const response = await classesApi.getStudentClasses() as any;
-          setClasses(response.results || response);
+          const response = await classesApi.getStudentClasses() as unknown as { results: Class[] } | Class[];
+          setClasses('results' in response ? response.results : response);
         }
       } catch (error) {
         console.error('Failed to fetch classes:', error);
@@ -156,7 +155,7 @@ export default function ClassesPage() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <button 
+            <button
               className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               onClick={handleFilter}
             >
@@ -176,9 +175,8 @@ export default function ClassesPage() {
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">{cls.name}</h3>
                       <p className="text-sm text-gray-600 line-clamp-2">{cls.description}</p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      cls.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${cls.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
                       {cls.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
@@ -235,14 +233,14 @@ export default function ClassesPage() {
 
                   {/* Actions */}
                   <div className="flex space-x-2">
-                    <button 
+                    <button
                       className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                       onClick={() => handleViewClass(cls.id)}
                     >
                       View Class
                     </button>
                     {user?.role === 'TEACHER' && (
-                      <button 
+                      <button
                         className="px-3 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={() => handleClassAnalytics(cls.id)}
                       >

@@ -24,6 +24,9 @@ from apps.mockexams.serializers import (
 from apps.questionbank.serializers import QuestionStudentSerializer
 from apps.common.permissions import IsTeacherOrAdmin, IsStudent
 
+# Import Bluebook views
+from .bluebook_views import ExamAnalyticsViewSet, ExamPerformanceViewSet
+
 
 class MockExamViewSet(viewsets.ModelViewSet):
     """

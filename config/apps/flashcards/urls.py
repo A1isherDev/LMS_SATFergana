@@ -7,8 +7,8 @@ from apps.flashcards.views import FlashcardViewSet, FlashcardProgressViewSet
 
 
 router = DefaultRouter()
-router.register(r'flashcards', FlashcardViewSet, basename='flashcard')
-router.register(r'flashcard-progress', FlashcardProgressViewSet, basename='flashcard-progress')
+router.register(r'progress', FlashcardProgressViewSet, basename='flashcard-progress')
+router.register(r'', FlashcardViewSet, basename='flashcard')
 
 urlpatterns = [
     path('flashcards/', include(router.urls)),

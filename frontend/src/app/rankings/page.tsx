@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
-import { 
-  Trophy, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus, 
-  Calendar, 
+import {
+  Trophy,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Calendar,
   Award,
   Users,
   Target,
@@ -54,6 +54,7 @@ export default function RankingsPage() {
   const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<'WEEKLY' | 'MONTHLY' | 'ALL_TIME'>('WEEKLY');
+  const [periodInfo, setPeriodInfo] = useState<{ start: string; end: string } | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,22 +65,22 @@ export default function RankingsPage() {
       type: 'WEEKLY',
       label: 'Weekly',
       description: 'This week\'s top performers',
-      start_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      end_date: new Date().toISOString()
+      start_date: '',
+      end_date: ''
     },
     {
       type: 'MONTHLY',
       label: 'Monthly',
       description: 'This month\'s top performers',
-      start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-      end_date: new Date().toISOString()
+      start_date: '',
+      end_date: ''
     },
     {
       type: 'ALL_TIME',
       label: 'All Time',
       description: 'All-time highest achievers',
-      start_date: new Date(new Date().getFullYear(), 0, 1).toISOString(), // Start of current year
-      end_date: new Date().toISOString()
+      start_date: '',
+      end_date: ''
     }
   ];
 
@@ -92,9 +93,14 @@ export default function RankingsPage() {
             'Content-Type': 'application/json',
           },
         });
-        
+
         if (response.ok) {
           const data = await response.json();
+          setPeriodInfo({
+            start: data.period_start,
+            end: data.period_end
+          });
+
           const transformedData = data.leaderboard?.map((entry: any, index: number) => ({
             student: {
               id: entry.student_id,
@@ -114,9 +120,9 @@ export default function RankingsPage() {
             homework_accuracy: entry.homework_accuracy || 0,
             mock_exam_count: entry.mock_exam_count || 0
           })) || [];
-          
+
           setLeaderboard(transformedData);
-          
+
           // Extract unique classes from the data
           const uniqueClasses = [...new Set(transformedData.map((entry: LeaderboardEntry) => entry.class_name).filter(Boolean))] as string[];
           setAvailableClasses(uniqueClasses);
@@ -232,32 +238,31 @@ export default function RankingsPage() {
           </div>
 
           {/* Period Selection */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-card rounded-lg shadow p-6 border border-border">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">Select Period</h2>
-              <div className="text-sm text-gray-500">
-                {formatDate(periods.find(p => p.type === selectedPeriod)?.start_date || '')} - {formatDate(periods.find(p => p.type === selectedPeriod)?.end_date || '')}
+              <h2 className="text-lg font-semibold text-foreground">Select Period</h2>
+              <div className="text-sm text-muted-foreground">
+                {periodInfo ? `${formatDate(periodInfo.start)} - ${formatDate(periodInfo.end)}` : 'Loading period...'}
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {periods.map((period) => (
                 <button
                   key={period.type}
                   onClick={() => setSelectedPeriod(period.type)}
-                  className={`p-4 rounded-lg border-2 transition-colors ${
-                    selectedPeriod === period.type
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`p-4 rounded-lg border-2 transition-colors ${selectedPeriod === period.type
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10'
+                      : 'border-border hover:border-muted-foreground/30 bg-card'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-gray-900">{period.label}</h3>
+                    <h3 className="font-semibold text-foreground">{period.label}</h3>
                     {selectedPeriod === period.type && (
                       <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">{period.description}</p>
+                  <p className="text-sm text-muted-foreground">{period.description}</p>
                 </button>
               ))}
             </div>
@@ -266,19 +271,19 @@ export default function RankingsPage() {
           {/* Search and Filter */}
           <div className="flex items-center space-x-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-border bg-card text-foreground rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
             </div>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-4 py-2 border border-border bg-card text-foreground rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             >
               <option value="all">All Classes</option>
               {availableClasses.map((className) => (
@@ -305,9 +310,9 @@ export default function RankingsPage() {
                       <div className="flex items-center mt-1">
                         {getTrendIcon(currentUserRank.trend)}
                         <span className="ml-1">
-                          {currentUserRank.trend === 'stable' ? 'No change' : 
-                           currentUserRank.trend === 'up' ? `↑ from #${currentUserRank.previous_rank}` :
-                           `↓ from #${currentUserRank.previous_rank}`}
+                          {currentUserRank.trend === 'stable' ? 'No change' :
+                            currentUserRank.trend === 'up' ? `↑ from #${currentUserRank.previous_rank}` :
+                              `↓ from #${currentUserRank.previous_rank}`}
                         </span>
                       </div>
                     </div>
@@ -324,20 +329,19 @@ export default function RankingsPage() {
           )}
 
           {/* Leaderboard */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
+          <div className="bg-card rounded-lg shadow overflow-hidden border border-border">
+            <div className="px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">
                 {periods.find(p => p.type === selectedPeriod)?.label} Leaderboard
               </h2>
             </div>
-            
+
             <div className="divide-y divide-gray-200">
               {filteredLeaderboard.map((entry, index) => (
                 <div
                   key={entry.student.id}
-                  className={`p-6 hover:bg-gray-50 transition-colors ${
-                    entry.student.id === user?.id ? 'bg-blue-50' : ''
-                  }`}
+                  className={`p-6 hover:bg-gray-50 transition-colors ${entry.student.id === user?.id ? 'bg-blue-50' : ''
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -382,8 +386,8 @@ export default function RankingsPage() {
                           {getTrendIcon(entry.trend)}
                           <span className={`text-sm font-medium ${getTrendColor(entry.trend)}`}>
                             {entry.trend === 'stable' ? '—' :
-                             entry.trend === 'up' ? `+${entry.previous_rank! - entry.rank}` :
-                             `-${entry.rank - entry.previous_rank!}`}
+                              entry.trend === 'up' ? `+${entry.previous_rank! - entry.rank}` :
+                                `-${entry.rank - entry.previous_rank!}`}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500">vs last period</p>
@@ -421,43 +425,43 @@ export default function RankingsPage() {
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-card rounded-lg shadow p-6 border border-border">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Participants</p>
-                  <p className="text-2xl font-bold text-gray-900">{leaderboard.length}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Participants</p>
+                  <p className="text-2xl font-bold text-foreground">{leaderboard.length}</p>
                 </div>
-                <Users className="h-8 w-8 text-blue-600" />
+                <Users className="h-8 w-8 text-blue-600 dark:text-blue-400 opacity-50" />
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-card rounded-lg shadow p-6 border border-border">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Highest Score</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">Highest Score</p>
+                  <p className="text-2xl font-bold text-foreground">
                     {leaderboard.length > 0 ? Math.max(...leaderboard.map(e => e.points)) : 0}
                   </p>
                 </div>
-                <Target className="h-8 w-8 text-green-600" />
+                <Target className="h-8 w-8 text-green-600 dark:text-green-400 opacity-50" />
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-card rounded-lg shadow p-6 border border-border">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Average Score</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">Average Score</p>
+                  <p className="text-2xl font-bold text-foreground">
                     {leaderboard.length > 0 ? Math.round(leaderboard.reduce((sum, e) => sum + e.points, 0) / leaderboard.length) : 0}
                   </p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-purple-600" />
+                <BarChart3 className="h-8 w-8 text-purple-600 dark:text-purple-400 opacity-50" />
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-card rounded-lg shadow p-6 border border-border">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Study Time</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {leaderboard.length > 0 ? 
+                  <p className="text-sm font-medium text-muted-foreground">Total Study Time</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {leaderboard.length > 0 ?
                       (() => {
                         const totalMinutes = leaderboard.reduce((sum, e) => sum + (e.study_time_minutes || 0), 0);
                         const hours = Math.floor(totalMinutes / 60);
@@ -467,20 +471,20 @@ export default function RankingsPage() {
                     }
                   </p>
                 </div>
-                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                  <span className="text-lg">📚</span>
+                <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                  <span className="text-lg opacity-80">📚</span>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-card rounded-lg shadow p-6 border border-border">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Top 10% Cutoff</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">Top 10% Cutoff</p>
+                  <p className="text-2xl font-bold text-foreground">
                     {leaderboard.length > 0 ? leaderboard[Math.ceil(leaderboard.length * 0.1) - 1]?.points || 0 : 0}
                   </p>
                 </div>
-                <Award className="h-8 w-8 text-orange-600" />
+                <Award className="h-8 w-8 text-orange-600 dark:text-orange-400 opacity-50" />
               </div>
             </div>
           </div>

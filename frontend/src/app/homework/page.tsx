@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGuard from '../../components/AuthGuard';
 import DashboardLayout from '../../components/DashboardLayout';
-import { 
-  Clock, 
-  Calendar, 
-  CheckCircle, 
+import {
+  Clock,
+  Calendar,
+  CheckCircle,
   AlertCircle,
   BookOpen,
   Filter,
@@ -15,7 +15,8 @@ import {
   Plus,
   FileText,
   TrendingUp,
-  Star
+  Star,
+  Download
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, formatDateTime, getDifficultyColor } from '../../utils/helpers';
@@ -36,6 +37,7 @@ interface Homework {
   };
   due_date: string;
   is_published: boolean;
+  max_score: number;
   total_questions: number;
   difficulty_level: 'EASY' | 'MEDIUM' | 'HARD';
   created_at: string;
@@ -44,6 +46,7 @@ interface Homework {
     submitted_at: string;
     score: number;
     max_score: number;
+    accuracy_percentage?: number;
     is_late: boolean;
   };
 }
@@ -51,10 +54,15 @@ interface Homework {
 export default function HomeworkPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const filterParam = searchParams.get('filter');
+
   const [homework, setHomework] = useState<Homework[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'submitted' | 'overdue'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'submitted' | 'overdue'>(
+    (filterParam as any) || 'all'
+  );
 
   const handleCreateAssignment = () => {
     router.push('/homework/create');
@@ -62,6 +70,22 @@ export default function HomeworkPage() {
 
   const handleViewHomework = (homeworkId: number) => {
     router.push(`/homework/${homeworkId}`);
+  };
+
+  const handleExportGrades = async () => {
+    try {
+      const response = await homeworkApi.exportGrades() as any;
+      const url = window.URL.createObjectURL(new Blob([response]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `grades_report_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exporting grades:', error);
+      alert('Failed to export grades. Please try again.');
+    }
   };
 
   useEffect(() => {
@@ -101,11 +125,11 @@ export default function HomeworkPage() {
 
   const filteredHomework = homework.filter(hw => {
     const matchesSearch = hw.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         hw.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         hw.class_obj.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      hw.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      hw.class_obj.name.toLowerCase().includes(searchTerm.toLowerCase());
+
     if (filterStatus === 'all') return matchesSearch;
-    
+
     const status = getHomeworkStatus(hw);
     return matchesSearch && status === filterStatus;
   });
@@ -168,15 +192,25 @@ export default function HomeworkPage() {
                 {user?.role === 'TEACHER' ? 'Manage assignments and track student progress' : 'View and complete your assignments'}
               </p>
             </div>
-            {user?.role === 'TEACHER' && (
-              <button 
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                onClick={handleCreateAssignment}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleExportGrades}
+                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                title="Download grades as CSV"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Assignment
+                <Download className="h-4 w-4 mr-2" />
+                Export Grades
               </button>
-            )}
+              {user?.role === 'TEACHER' && (
+                <button
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={handleCreateAssignment}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Assignment
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Search and Filter */}
@@ -202,6 +236,24 @@ export default function HomeworkPage() {
               <option value="overdue">Overdue</option>
             </select>
           </div>
+
+          {/* Filter Indicator */}
+          {filterParam && filterParam !== 'all' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Filter className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">
+                  Showing: <span className="font-bold">{filterParam} submissions</span>
+                </span>
+              </div>
+              <button
+                onClick={() => setFilterStatus('all')}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Clear Filter
+              </button>
+            </div>
+          )}
 
           {/* Homework List */}
           <div className="space-y-4">
@@ -269,14 +321,14 @@ export default function HomeworkPage() {
                         Assigned by {hw.assigned_by.first_name} {hw.assigned_by.last_name}
                       </div>
                       <div className="flex space-x-2">
-                        <button 
+                        <button
                           className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                           onClick={() => handleViewHomework(hw.id)}
                         >
                           {hw.submission ? 'View Submission' : 'Start Assignment'}
                         </button>
                         {user?.role === 'TEACHER' && (
-                          <button 
+                          <button
                             className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors"
                             onClick={() => {
                               router.push(`/analytics?homework_id=${hw.id}`);

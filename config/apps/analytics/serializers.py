@@ -108,6 +108,7 @@ class StudentAnalyticsSummarySerializer(serializers.Serializer):
     """Serializer for comprehensive student analytics summary."""
     student_id = serializers.IntegerField()
     student_name = serializers.CharField()
+    student_email = serializers.CharField()
     current_sat_score = serializers.IntegerField()
     target_sat_score = serializers.IntegerField()
     score_gap = serializers.IntegerField()
@@ -163,3 +164,13 @@ class StudySessionUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'questions_attempted', 'questions_correct', 'flashcards_reviewed'
         ]
+
+
+class TopicAnalyticsSerializer(serializers.Serializer):
+    """Serializer for topic-level performance data."""
+    skill_tag = serializers.CharField()
+    question_type = serializers.CharField()
+    total_attempts = serializers.IntegerField()
+    correct_attempts = serializers.IntegerField()
+    accuracy_rate = serializers.FloatField()
+    average_time_seconds = serializers.FloatField()

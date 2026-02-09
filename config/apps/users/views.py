@@ -23,6 +23,7 @@ from apps.common.permissions import IsTeacherOrAdmin, IsStudent
 User = get_user_model()
 
 
+
 class UserViewSet(viewsets.ModelViewSet):
     """
     ViewSet for User model.
@@ -120,7 +121,7 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
         """Set permissions based on action."""
         if self.action in ['list', 'retrieve']:
             return [permissions.IsAuthenticated()]
-        elif self.action in ['update', 'partial_update']:
+        elif self.action in ['update', 'partial_update', 'exam_date', 'me']:
             return [permissions.IsAuthenticated()]
         return super().get_permissions()
     
@@ -136,10 +137,8 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
         try:
             profile = request.user.student_profile
         except StudentProfile.DoesNotExist:
-            return Response(
-                {"detail": "Student profile not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+             # Create profile if it doesn't exist
+            profile = StudentProfile.objects.create(user=request.user)
         
         if request.method == 'GET':
             serializer = self.get_serializer(profile)
@@ -150,6 +149,35 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
+
+    @action(detail=False, methods=['patch'])
+    def exam_date(self, request):
+        """Update SAT exam date."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can update their exam date"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            profile = request.user.student_profile
+        except StudentProfile.DoesNotExist:
+            profile = StudentProfile.objects.create(user=request.user)
+        
+        exam_date = request.data.get('sat_exam_date')
+        # Allow clearing the date if explicit null is sent, or just error if field missing?
+        # The original code errored if None.
+        if exam_date is None:
+            return Response(
+                {"detail": "sat_exam_date field is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        profile.sat_exam_date = exam_date
+        profile.save()
+        
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
 
 
 class RegisterView(APIView):
@@ -283,109 +311,4 @@ class InvitationViewSet(viewsets.ModelViewSet):
         invitation.save()
         
         serializer = self.get_serializer(invitation)
-        return Response(serializer.data)
-
-
-class UserProfileViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for User profile management.
-    """
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Return queryset based on user role."""
-        user = self.request.user
-        
-        if user.is_admin:
-            return User.objects.all()
-        elif user.is_teacher:
-            return User.objects.filter(role='STUDENT')
-        else:
-            return User.objects.filter(id=user.id)
-    
-    @action(detail=False, methods=['get', 'patch'])
-    def profile(self, request):
-        """Get or update current user's profile."""
-        user = request.user
-        
-        if request.method == 'GET':
-            serializer = self.get_serializer(user)
-            return Response(serializer.data)
-        
-        elif request.method == 'PATCH':
-            serializer = self.get_serializer(user, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-
-
-class StudentProfileViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for StudentProfile model.
-    """
-    serializer_class = StudentProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Return queryset based on user role."""
-        user = self.request.user
-        
-        if user.is_admin or user.is_teacher:
-            return StudentProfile.objects.select_related('user').all()
-        elif user.is_student:
-            return StudentProfile.objects.filter(user=user)
-        else:
-            return StudentProfile.objects.none()
-    
-    @action(detail=False, methods=['get', 'patch'])
-    def me(self, request):
-        """Get or update current student's profile."""
-        if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can access their profile"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        try:
-            profile = request.user.student_profile
-        except StudentProfile.DoesNotExist:
-            # Create profile if it doesn't exist
-            profile = StudentProfile.objects.create(user=request.user)
-        
-        if request.method == 'GET':
-            serializer = self.get_serializer(profile)
-            return Response(serializer.data)
-        
-        elif request.method == 'PATCH':
-            serializer = self.get_serializer(profile, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-    
-    @action(detail=False, methods=['patch'])
-    def exam_date(self, request):
-        """Update SAT exam date."""
-        if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can update their exam date"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        try:
-            profile = request.user.student_profile
-        except StudentProfile.DoesNotExist:
-            profile = StudentProfile.objects.create(user=request.user)
-        
-        exam_date = request.data.get('sat_exam_date')
-        if exam_date is None:
-            return Response(
-                {"detail": "sat_exam_date field is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        profile.sat_exam_date = exam_date
-        profile.save()
-        
-        serializer = self.get_serializer(profile)
         return Response(serializer.data)

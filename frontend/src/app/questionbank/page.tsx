@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
-import { 
-  Brain, 
-  Filter, 
-  Search, 
-  Play, 
-  Clock, 
-  CheckCircle, 
+import {
+  Brain,
+  Filter,
+  Search,
+  Play,
+  Clock,
+  CheckCircle,
   XCircle,
   TrendingUp,
   BarChart3,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubjectColor, getDifficultyColor } from '@/utils/helpers';
+import { questionBankApi } from '@/utils/api';
 
 interface Question {
   id: number;
@@ -43,6 +45,9 @@ interface PracticeSession {
 
 export default function QuestionBankPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const subjectParam = searchParams.get('subject');
+
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
@@ -51,68 +56,42 @@ export default function QuestionBankPage() {
   const [sessionStats, setSessionStats] = useState<PracticeSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterSubject, setFilterSubject] = useState<string>('all');
+  const [filterSubject, setFilterSubject] = useState<string>(
+    subjectParam ? subjectParam.toUpperCase() : 'all'
+  );
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
 
   useEffect(() => {
-    // TODO: Fetch actual questions from API
-    const mockQuestions: Question[] = [
-      {
-        id: 1,
-        question_text: 'If x² - 5x + 6 = 0, what are the values of x?',
-        question_type: 'MULTIPLE_CHOICE',
-        subject: 'MATH',
-        difficulty: 'MEDIUM',
-        correct_answer: '2 and 3',
-        explanation: 'Factor the quadratic equation: (x-2)(x-3) = 0, so x = 2 or x = 3',
-        options: ['1 and 6', '2 and 3', '-2 and -3', '0 and 5'],
-        tags: ['algebra', 'quadratic-equations'],
-        attempt_count: 15,
-        accuracy_rate: 73.3
-      },
-      {
-        id: 2,
-        question_text: 'Which of the following best describes the tone of the passage?',
-        question_type: 'MULTIPLE_CHOICE',
-        subject: 'READING',
-        difficulty: 'HARD',
-        correct_answer: 'Skeptical',
-        explanation: 'The author uses questioning language and presents counterarguments, indicating a skeptical tone',
-        options: ['Optimistic', 'Skeptical', 'Enthusiastic', 'Neutral'],
-        tags: ['reading-comprehension', 'tone-analysis'],
-        attempt_count: 8,
-        accuracy_rate: 62.5
-      },
-      {
-        id: 3,
-        question_text: 'Identify the error in the following sentence: "The team of players are ready for the game."',
-        question_type: 'MULTIPLE_CHOICE',
-        subject: 'WRITING',
-        difficulty: 'EASY',
-        correct_answer: 'Subject-verb agreement',
-        explanation: 'The subject "team" is singular, so the verb should be "is" instead of "are"',
-        options: ['Pronoun case', 'Subject-verb agreement', 'Parallel structure', 'Modifier placement'],
-        tags: ['grammar', 'subject-verb-agreement'],
-        attempt_count: 22,
-        accuracy_rate: 86.4
+    const fetchQuestions = async () => {
+      try {
+        setIsLoading(true);
+        const response = await questionBankApi.getQuestions({
+          subject: filterSubject !== 'all' ? filterSubject : undefined,
+          difficulty: filterDifficulty !== 'all' ? filterDifficulty : undefined,
+          question_type: filterType !== 'all' ? filterType : undefined,
+          search: searchTerm || undefined
+        });
+        setQuestions((response as any).results || response);
+      } catch (error) {
+        console.error('Error fetching questions:', error);
+        setQuestions([]);
+      } finally {
+        setIsLoading(false);
       }
-    ];
+    };
 
-    setTimeout(() => {
-      setQuestions(mockQuestions);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    fetchQuestions();
+  }, [filterSubject, filterDifficulty, filterType, searchTerm]);
 
   const filteredQuestions = questions.filter(q => {
-    const matchesSearch = q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         q.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+    const matchesSearch = (q.question_text?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (q.tags || []).some(tag => (tag?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
+
     const matchesSubject = filterSubject === 'all' || q.subject === filterSubject;
     const matchesDifficulty = filterDifficulty === 'all' || q.difficulty === filterDifficulty;
     const matchesType = filterType === 'all' || q.question_type === filterType;
-    
+
     return matchesSearch && matchesSubject && matchesDifficulty && matchesType;
   });
 
@@ -134,11 +113,23 @@ export default function QuestionBankPage() {
     }
   };
 
-  const submitAnswer = () => {
+  const submitAnswer = async () => {
     if (!currentQuestion || !selectedAnswer) return;
 
     const isCorrect = selectedAnswer === currentQuestion.correct_answer;
     setShowExplanation(true);
+
+    // Save attempt to backend
+    try {
+      await questionBankApi.submitAttempt({
+        question: currentQuestion.id,
+        selected_answer: selectedAnswer,
+        time_taken_seconds: sessionStats ? Math.floor((Date.now() - new Date(sessionStats.started_at).getTime()) / 1000) : 0,
+        attempt_type: 'PRACTICE'
+      });
+    } catch (error) {
+      console.error('Error saving attempt:', error);
+    }
 
     setSessionStats(prev => prev ? {
       ...prev,
@@ -150,7 +141,7 @@ export default function QuestionBankPage() {
   const nextQuestion = () => {
     const availableQuestions = filteredQuestions.length > 0 ? filteredQuestions : questions;
     const remainingQuestions = availableQuestions.filter(q => q.id !== currentQuestion?.id);
-    
+
     if (remainingQuestions.length > 0) {
       const randomQuestion = remainingQuestions[Math.floor(Math.random() * remainingQuestions.length)];
       setCurrentQuestion(randomQuestion);
@@ -206,7 +197,7 @@ export default function QuestionBankPage() {
                   Exit Practice
                 </button>
               </div>
-              
+
               {sessionStats && (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
@@ -215,7 +206,7 @@ export default function QuestionBankPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-green-600">
-                      {sessionStats.questions_answered > 0 
+                      {sessionStats.questions_answered > 0
                         ? Math.round((sessionStats.correct_answers / sessionStats.questions_answered) * 100)
                         : 0}%
                     </p>
@@ -262,11 +253,10 @@ export default function QuestionBankPage() {
                     {currentQuestion.options.map((option, index) => (
                       <label
                         key={index}
-                        className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                          selectedAnswer === option
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        } ${showExplanation && option === currentQuestion.correct_answer ? 'border-green-500 bg-green-50' : ''}
+                        className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${selectedAnswer === option
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                          } ${showExplanation && option === currentQuestion.correct_answer ? 'border-green-500 bg-green-50' : ''}
                           ${showExplanation && selectedAnswer === option && option !== currentQuestion.correct_answer ? 'border-red-500 bg-red-50' : ''}
                         `}
                       >
@@ -360,6 +350,24 @@ export default function QuestionBankPage() {
               Start Practice
             </button>
           </div>
+
+          {/* Filter Indicator */}
+          {subjectParam && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Filter className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">
+                  Filtering by subject: <span className="font-bold">{subjectParam}</span>
+                </span>
+              </div>
+              <button
+                onClick={() => setFilterSubject('all')}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Clear Filter
+              </button>
+            </div>
+          )}
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -481,7 +489,7 @@ export default function QuestionBankPage() {
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1 mb-4">
-                    {question.tags.map((tag, index) => (
+                    {question.tags?.map((tag, index) => (
                       <span
                         key={index}
                         className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded"

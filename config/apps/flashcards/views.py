@@ -169,6 +169,61 @@ class FlashcardViewSet(viewsets.ModelViewSet):
         
         serializer = FlashcardListSerializer(flashcards, many=True)
         return Response(serializer.data)
+    
+    @extend_schema(
+        summary="Update flashcard progress",
+        description="Review a flashcard and update progress directly. This is the primary endpoint for students practicing.",
+        tags=["Flashcards"],
+        request=FlashcardReviewSerializer,
+        responses={200: FlashcardProgressSerializer}
+    )
+    @action(detail=True, methods=['post'])
+    def progress(self, request, pk=None):
+        """Update or create progress for a specific flashcard."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can update flashcard progress"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        flashcard = self.get_object()
+        
+        # Validate data
+        serializer = FlashcardReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Get or create progress record
+        progress, created = FlashcardProgress.objects.get_or_create(
+            student=request.user,
+            flashcard=flashcard,
+            defaults={
+                'mastery_level': 0,
+                'ease_factor': 2.5,
+                'interval': 1,
+                'next_review_date': timezone.now().date()
+            }
+        )
+        
+        # Update progress based on result
+        is_correct = serializer.validated_data.get('is_correct', True)
+        time_taken = serializer.validated_data.get('time_taken_seconds', 0)
+        
+        # Simple algorithm: increment mastery on success, reset on failure
+        if is_correct:
+            if progress.mastery_level < 5:
+                progress.mastery_level += 1
+            progress.interval = min(progress.interval * 2, 365) # Spaced repetition interval
+        else:
+            progress.mastery_level = max(0, progress.mastery_level - 1)
+            progress.interval = 1
+            
+        progress.review_count += 1
+        progress.last_reviewed_at = timezone.now()
+        progress.next_review_date = timezone.now().date() + timezone.timedelta(days=progress.interval)
+        progress.total_time_seconds += time_taken
+        progress.save()
+        
+        return Response(FlashcardProgressSerializer(progress).data)
 
 
 class FlashcardProgressViewSet(viewsets.ModelViewSet):
@@ -348,97 +403,6 @@ class FlashcardProgressViewSet(viewsets.ModelViewSet):
         next_card = due_cards.first()
         serializer = FlashcardProgressDetailSerializer(next_card)
         return Response(serializer.data)
-    
-    @extend_schema(
-        summary="Get flashcard progress",
-        description="Get current student's flashcard learning progress overview.",
-        tags=["Flashcards"],
-        responses={200: FlashcardProgressSerializer(many=True)}
-    )
-    @action(detail=False, methods=['get'])
-    def progress(self, request):
-        """Get current student's flashcard progress."""
-        if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can view their progress"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        progress_records = FlashcardProgress.objects.filter(
-            student=request.user
-        ).order_by('-last_reviewed_at')[:50]  # Last 50 cards
-        
-        serializer = FlashcardProgressSerializer(progress_records, many=True)
-        return Response(serializer.data)
-
-    @extend_schema(
-        summary="Update flashcard progress",
-        description="Update flashcard progress after review. Handles spaced repetition algorithm.",
-        tags=["Flashcards"],
-        request=FlashcardReviewSerializer,
-        responses={200: {
-            'type': 'object',
-            'properties': {
-                'message': {'type': 'string'},
-                'next_review_date': {'type': 'string'},
-                'interval': {'type': 'integer'}
-            }
-        }}
-    )
-    @action(detail=True, methods=['post'])
-    def progress(self, request, pk=None):
-        """Update flashcard progress after review."""
-        if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can update flashcard progress"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        flashcard = self.get_object()
-        
-        # Get or create progress record
-        progress, created = FlashcardProgress.objects.get_or_create(
-            student=request.user,
-            flashcard=flashcard,
-            defaults={
-                'mastery_level': 0,
-                'review_count': 0,
-                'ease_factor': 2.5,
-                'interval': 1,
-                'next_review_date': timezone.now().date()
-            }
-        )
-        
-        serializer = FlashcardReviewSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        # Update progress based on review result
-        is_correct = serializer.validated_data['is_correct']
-        time_taken = serializer.validated_data.get('time_taken_seconds', 0)
-        
-        if is_correct:
-            if progress.mastery_level < 5:
-                progress.mastery_level += 1
-            progress.ease_factor = min(progress.ease_factor + 0.1, 3.0)
-            progress.interval = min(progress.interval * 2, 180)  # Max 6 months
-        else:
-            if progress.mastery_level > 0:
-                progress.mastery_level -= 1
-            progress.ease_factor = max(progress.ease_factor - 0.2, 1.3)
-            progress.interval = max(progress.interval // 2, 1)
-        
-        progress.review_count += 1
-        progress.last_reviewed_at = timezone.now()
-        progress.next_review_date = timezone.now().date() + timezone.timedelta(days=progress.interval)
-        progress.total_time_seconds += time_taken
-        progress.save()
-        
-        return Response({
-            'message': 'Progress updated successfully',
-            'mastery_level': progress.mastery_level,
-            'next_review_date': progress.next_review_date,
-            'interval': progress.interval
-        })
 
     @extend_schema(
         summary="Get review session",

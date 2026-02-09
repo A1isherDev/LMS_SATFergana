@@ -194,10 +194,12 @@ class InvitationSerializer(serializers.ModelSerializer):
 
 class InvitationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating invitations."""
+    expires_at = serializers.DateTimeField(required=False)
     
     class Meta:
         model = Invitation
-        fields = ['email', 'role', 'expires_at']
+        fields = ['id', 'code', 'email', 'role', 'expires_at']
+        read_only_fields = ['id', 'code']
     
     def validate_email(self, value):
         """Check if user with this email already exists."""
@@ -206,6 +208,13 @@ class InvitationCreateSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
-        """Create invitation with current user as inviter."""
+        """Create invitation with current user as inviter and default expiration."""
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        # Set default expiration to 30 days if not provided
+        if 'expires_at' not in validated_data:
+            validated_data['expires_at'] = timezone.now() + timedelta(days=30)
+        
         validated_data['invited_by'] = self.context['request'].user
         return super().create(validated_data)

@@ -119,6 +119,10 @@ class MockExam(TimestampedModel):
     
     def clean(self):
         """Validate exam data."""
+        # Skip M2M validation if instance is not saved yet (creates circular dependency)
+        if not self.pk:
+            return
+
         from django.core.exceptions import ValidationError
         
         if self.exam_type == 'FULL':

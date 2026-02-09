@@ -1,15 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '../../../components/AuthGuard';
 import DashboardLayout from '../../../components/DashboardLayout';
-import { 
+import {
   ArrowLeft,
-  Save,
-  Users,
-  Calendar,
-  BookOpen
+  Save
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { classesApi } from '../../../utils/api';
@@ -34,7 +31,7 @@ export default function CreateClassPage() {
     max_students: 30
   });
 
-  const handleInputChange = (field: keyof ClassFormData, value: any) => {
+  const handleInputChange = (field: keyof ClassFormData, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

@@ -3,25 +3,22 @@
 import { useState, useEffect } from 'react';
 import AuthGuard from '../../components/AuthGuard';
 import DashboardLayout from '../../components/DashboardLayout';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  BarChart3, 
-  Calendar, 
-  Clock, 
-  Target, 
-  Brain, 
-  BookOpen, 
-  Award, 
+import {
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  Clock,
+  Target,
+  BookOpen,
+  Award,
   AlertTriangle,
-  CheckCircle,
   Activity,
-  Filter,
   Download,
   Eye
 } from 'lucide-react';
+import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDate, formatDateTime, formatPercentage, getSatScoreColor, getSubjectColor } from '../../utils/helpers';
+import { formatDateTime, formatPercentage, getSatScoreColor, getSubjectColor } from '../../utils/helpers';
 import { analyticsApi } from '../../utils/api';
 
 interface ProgressData {
@@ -69,8 +66,6 @@ interface StudentSummary {
 }
 
 export default function AnalyticsPage() {
-  const { user } = useAuth();
-  const [progressData, setProgressData] = useState<ProgressData[]>([]);
   const [weakAreas, setWeakAreas] = useState<WeakArea[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [performanceTrends, setPerformanceTrends] = useState<PerformanceTrend[]>([]);
@@ -79,97 +74,82 @@ export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch actual analytics data from API
-    const mockProgressData: ProgressData[] = [
-      { date: '2024-01-20', homework_completion: 85, sat_score: 1180, study_time: 120, flashcard_mastery: 45 },
-      { date: '2024-01-21', homework_completion: 90, sat_score: 1200, study_time: 90, flashcard_mastery: 48 },
-      { date: '2024-01-22', homework_completion: 88, sat_score: 1220, study_time: 150, flashcard_mastery: 52 },
-      { date: '2024-01-23', homework_completion: 92, sat_score: 1250, study_time: 110, flashcard_mastery: 55 },
-      { date: '2024-01-24', homework_completion: 95, sat_score: 1280, study_time: 135, flashcard_mastery: 58 },
-      { date: '2024-01-25', homework_completion: 93, sat_score: 1300, study_time: 125, flashcard_mastery: 62 },
-    ];
+    const fetchAnalyticsData = async () => {
+      try {
+        setIsLoading(true);
 
-    const mockWeakAreas: WeakArea[] = [
-      {
-        subject: 'MATH',
-        subcategory: 'Algebra',
-        accuracy_rate: 65,
-        total_attempts: 45,
-        improvement_suggestion: 'Focus on quadratic equations and factoring techniques'
-      },
-      {
-        subject: 'READING',
-        subcategory: 'Inference Questions',
-        accuracy_rate: 58,
-        total_attempts: 32,
-        improvement_suggestion: 'Practice identifying textual evidence and supporting details'
-      },
-      {
-        subject: 'WRITING',
-        subcategory: 'Grammar Rules',
-        accuracy_rate: 72,
-        total_attempts: 28,
-        improvement_suggestion: 'Review subject-verb agreement and punctuation rules'
+        // Fetch analytics data with individual error handling
+        let weakAreasData: WeakArea[] = [];
+        let sessionsData: StudySession[] = [];
+        let trendsData: PerformanceTrend[] = [];
+        let summaryData: StudentSummary | null = null;
+
+        // Try to fetch weak areas
+        try {
+          const weakAreasResponse = await analyticsApi.getMyWeakAreas() as { results?: WeakArea[] } | WeakArea[];
+          weakAreasData = Array.isArray(weakAreasResponse) ? weakAreasResponse : weakAreasResponse.results || [];
+        } catch (error) {
+          console.log('Weak areas endpoint not available, using empty data');
+        }
+
+        // Try to fetch sessions
+        try {
+          const sessionsResponse = await analyticsApi.getMySessions() as { results?: StudySession[] } | StudySession[];
+          sessionsData = Array.isArray(sessionsResponse) ? sessionsResponse : sessionsResponse.results || [];
+        } catch (error) {
+          console.log('Sessions endpoint not available, using empty data');
+        }
+
+        // Try to fetch performance trends
+        try {
+          const trendsResponse = await analyticsApi.getPerformanceTrends({ period_type: selectedPeriod.toUpperCase() }) as { results?: PerformanceTrend[] } | PerformanceTrend[];
+          trendsData = Array.isArray(trendsResponse) ? trendsResponse : trendsResponse.results || [];
+        } catch (error) {
+          console.log('Performance trends endpoint not available, using empty data');
+        }
+
+        // Try to fetch student summary
+        try {
+          summaryData = await analyticsApi.getStudentSummary() as StudentSummary;
+        } catch (error) {
+          console.log('Student summary endpoint not available');
+        }
+
+        setWeakAreas(weakAreasData);
+        setStudySessions(sessionsData);
+        setPerformanceTrends(trendsData);
+        setStudentSummary(summaryData);
+      } catch (error) {
+        console.error('Error fetching analytics data:', error);
+        // Set empty data on error
+        // setProgressData([]);
+        setWeakAreas([]);
+        setStudySessions([]);
+        setPerformanceTrends([]);
+        setStudentSummary(null);
+      } finally {
+        setIsLoading(false);
       }
-    ];
-
-    const mockStudySessions: StudySession[] = [
-      {
-        id: 1,
-        session_type: 'MOCK_EXAM',
-        started_at: '2024-01-25T09:00:00Z',
-        duration_minutes: 180,
-        questions_attempted: 154,
-        questions_correct: 120,
-        flashcards_reviewed: 0
-      },
-      {
-        id: 2,
-        session_type: 'HOMEWORK',
-        started_at: '2024-01-24T19:00:00Z',
-        duration_minutes: 45,
-        questions_attempted: 25,
-        questions_correct: 22,
-        flashcards_reviewed: 0
-      },
-      {
-        id: 3,
-        session_type: 'FLASHCARDS',
-        started_at: '2024-01-24T20:30:00Z',
-        duration_minutes: 30,
-        questions_attempted: 0,
-        questions_correct: 0,
-        flashcards_reviewed: 50
-      }
-    ];
-
-    const mockPerformanceTrends: PerformanceTrend[] = [
-      { period: 'Week 1', score: 1100, accuracy: 65, study_time: 420 },
-      { period: 'Week 2', score: 1150, accuracy: 68, study_time: 480 },
-      { period: 'Week 3', score: 1200, accuracy: 72, study_time: 520 },
-      { period: 'Week 4', score: 1280, accuracy: 78, study_time: 580 },
-    ];
-
-    const mockStudentSummary: StudentSummary = {
-      total_study_time: 2850,
-      average_sat_score: 1280,
-      homework_completion_rate: 91,
-      flashcard_mastery_rate: 62,
-      current_streak: 12,
-      longest_streak: 18,
-      weak_areas_count: 3,
-      strong_areas_count: 5
     };
 
-    setTimeout(() => {
-      setProgressData(mockProgressData);
-      setWeakAreas(mockWeakAreas);
-      setStudySessions(mockStudySessions);
-      setPerformanceTrends(mockPerformanceTrends);
-      setStudentSummary(mockStudentSummary);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    fetchAnalyticsData();
+  }, [selectedPeriod]);
+
+  const handleExport = async () => {
+    try {
+      const response = await analyticsApi.exportAnalytics();
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `analytics_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exporting analytics:', error);
+      alert('Export feature is not available at this time. Please contact your administrator.');
+    }
+  };
 
   const getTrendIcon = (current: number, previous: number) => {
     if (current > previous) return <TrendingUp className="h-4 w-4 text-green-500" />;
@@ -217,13 +197,16 @@ export default function AnalyticsPage() {
               <p className="text-gray-600">Track your progress and identify areas for improvement</p>
             </div>
             <div className="flex space-x-3">
-              <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              <button
+                onClick={handleExport}
+                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Export Report
               </button>
               <select
                 value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value as any)}
+                onChange={(e) => setSelectedPeriod(e.target.value as 'week' | 'month' | 'quarter')}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="week">Last Week</option>
@@ -295,7 +278,7 @@ export default function AnalyticsPage() {
                 <Eye className="h-4 w-4" />
               </button>
             </div>
-            
+
             {/* Placeholder for actual chart */}
             <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
               <div className="text-center">
@@ -311,92 +294,124 @@ export default function AnalyticsPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-gray-900">Areas to Improve</h2>
-                <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
-                  {weakAreas.length} areas
-                </span>
+                <div className="flex items-center space-x-3">
+                  <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                    {weakAreas.length} areas
+                  </span>
+                  <Link
+                    href="/analytics/topics"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    View Full Breakdown
+                  </Link>
+                </div>
               </div>
-              
+
               <div className="space-y-4">
-                {weakAreas.map((area, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubjectColor(area.subject)}`}>
-                          {area.subject}
+                {weakAreas.length > 0 ? (
+                  weakAreas.map((area, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubjectColor(area.subject)}`}>
+                            {area.subject}
+                          </span>
+                          <span className="text-sm font-medium text-gray-900">{area.subcategory}</span>
+                        </div>
+                        <span className={`text-sm font-medium ${getAccuracyColor(area.accuracy_rate)}`}>
+                          {formatPercentage(area.accuracy_rate)}
                         </span>
-                        <span className="text-sm font-medium text-gray-900">{area.subcategory}</span>
                       </div>
-                      <span className={`text-sm font-medium ${getAccuracyColor(area.accuracy_rate)}`}>
-                        {formatPercentage(area.accuracy_rate)}
-                      </span>
+
+                      <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                        <div
+                          className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${area.accuracy_rate}%` }}
+                        ></div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                        <span>{area.total_attempts} attempts</span>
+                        <AlertTriangle className="h-3 w-3 text-red-500" />
+                      </div>
+
+                      <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                        <p className="text-sm text-blue-800">
+                          <strong>Suggestion:</strong> {area.improvement_suggestion}
+                        </p>
+                      </div>
                     </div>
-                    
-                    <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-                      <div 
-                        className="bg-red-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${area.accuracy_rate}%` }}
-                      ></div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                      <span>{area.total_attempts} attempts</span>
-                      <AlertTriangle className="h-3 w-3 text-red-500" />
-                    </div>
-                    
-                    <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                      <p className="text-sm text-blue-800">
-                        <strong>Suggestion:</strong> {area.improvement_suggestion}
-                      </p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 bg-muted/30 rounded-lg border border-dashed border-border">
+                    <Target className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-foreground font-medium">No performance data yet</p>
+                    <p className="text-sm text-muted-foreground">Complete more practice questions to see your weak areas.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
             {/* Recent Study Sessions */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-card rounded-lg shadow p-6 border border-border">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Study Sessions</h2>
-                <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                  {studySessions.length} sessions
-                </span>
+                <h2 className="text-lg font-semibold text-foreground">Recent Study Sessions</h2>
+                {studySessions.length > 0 && (
+                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full">
+                    {studySessions.length} sessions
+                  </span>
+                )}
               </div>
-              
+
               <div className="space-y-4">
-                {studySessions.map((session) => (
-                  <div key={session.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <Activity className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium text-gray-900">{session.session_type.replace('_', ' ')}</span>
-                      </div>
-                      <span className="text-sm text-gray-500">
-                        {formatDateTime(session.started_at)}
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Duration</p>
-                        <p className="font-medium text-gray-900">{session.duration_minutes} min</p>
-                      </div>
-                      {session.questions_attempted > 0 && (
-                        <div>
-                          <p className="text-gray-500">Questions</p>
-                          <p className="font-medium text-gray-900">
-                            {session.questions_correct}/{session.questions_attempted}
-                          </p>
+                {studySessions.length > 0 ? (
+                  studySessions.map((session) => (
+                    <div key={session.id} className="border border-border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <Activity className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-foreground">{session.session_type.replace('_', ' ')}</span>
                         </div>
-                      )}
-                      {session.flashcards_reviewed > 0 && (
+                        <span className="text-sm text-muted-foreground">
+                          {formatDateTime(session.started_at)}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
-                          <p className="text-gray-500">Flashcards</p>
-                          <p className="font-medium text-gray-900">{session.flashcards_reviewed}</p>
+                          <p className="text-muted-foreground">Duration</p>
+                          <p className="font-medium text-foreground">{session.duration_minutes} min</p>
                         </div>
-                      )}
+                        {session.questions_attempted > 0 && (
+                          <div>
+                            <p className="text-muted-foreground">Questions</p>
+                            <p className="font-medium text-foreground">
+                              {session.questions_correct}/{session.questions_attempted}
+                            </p>
+                          </div>
+                        )}
+                        {session.flashcards_reviewed > 0 && (
+                          <div>
+                            <p className="text-muted-foreground">Flashcards</p>
+                            <p className="font-medium text-foreground">{session.flashcards_reviewed}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 bg-muted/30 rounded-lg border border-dashed border-border">
+                    <Clock className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-foreground font-medium">No sessions recorded</p>
+                    <p className="text-sm text-muted-foreground">Start a study session to track your time and progress.</p>
+                    <Link
+                      href="/dashboard"
+                      className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+                    >
+                      Go to Dashboard &rarr;
+                    </Link>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -416,7 +431,7 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">

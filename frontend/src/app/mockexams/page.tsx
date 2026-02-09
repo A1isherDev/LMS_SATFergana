@@ -3,23 +3,24 @@
 import { useState, useEffect } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
-import { 
-  Clock, 
-  Target, 
-  Play, 
-  Pause, 
-  Square, 
-  CheckCircle, 
+import {
+  Clock,
+  Target,
+  Play,
+  CheckCircle,
   AlertCircle,
   TrendingUp,
   Calendar,
   BarChart3,
   Timer,
   FileText,
-  Award
+  Award,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDate, formatDateTime, formatDuration, getSatScoreColor } from '@/utils/helpers';
+import { mockExamsApi } from '@/utils/api';
+import { useRouter } from 'next/navigation';
 
 interface MockExam {
   id: number;
@@ -46,123 +47,51 @@ interface MockExamAttempt {
   updated_at: string;
 }
 
-interface ExamSession {
-  id: number;
-  mock_exam: MockExam;
-  started_at: string;
-  current_section: string;
-  time_remaining: number;
-  questions_answered: number;
-  total_questions: number;
-}
+
 
 export default function MockExamsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [exams, setExams] = useState<MockExam[]>([]);
   const [attempts, setAttempts] = useState<MockExamAttempt[]>([]);
-  const [currentSession, setCurrentSession] = useState<ExamSession | null>(null);
-  const [isExamMode, setIsExamMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch actual exams and attempts from API
-    const mockExams: MockExam[] = [
-      {
-        id: 1,
-        title: 'Full SAT Practice Test #1',
-        description: 'Complete 3-hour SAT practice test with all sections',
-        exam_type: 'FULL',
-        total_questions: 154,
-        time_limit_minutes: 180,
-        is_active: true,
-        created_at: '2025-01-15T10:00:00Z'
-      },
-      {
-        id: 2,
-        title: 'Math Section Practice',
-        description: 'Focused math section with calculator and no-calculator parts',
-        exam_type: 'MATH',
-        total_questions: 58,
-        time_limit_minutes: 80,
-        is_active: true,
-        created_at: '2025-01-18T14:30:00Z'
-      },
-      {
-        id: 3,
-        title: 'Reading & Writing Practice',
-        description: 'Combined reading and writing sections practice',
-        exam_type: 'READING',
-        total_questions: 96,
-        time_limit_minutes: 100,
-        is_active: true,
-        created_at: '2025-01-20T09:15:00Z'
-      }
-    ];
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
 
-    const mockAttempts: MockExamAttempt[] = [
-      {
-        id: 1,
-        mock_exam: mockExams[0],
-        started_at: '2025-01-22T09:00:00Z',
-        submitted_at: '2025-01-22T12:15:00Z',
-        is_completed: true,
-        sat_score: 1280,
-        math_score: 640,
-        reading_writing_score: 640,
-        section_scores: {
-          'Math - No Calculator': 320,
-          'Math - Calculator': 320,
-          'Reading': 320,
-          'Writing': 320
-        },
-        created_at: '2024-01-22T09:00:00Z',
-        updated_at: '2024-01-22T12:15:00Z'
-      },
-      {
-        id: 2,
-        mock_exam: mockExams[1],
-        started_at: '2024-01-24T14:00:00Z',
-        is_completed: false,
-        sat_score: 0,
-        math_score: 0,
-        reading_writing_score: 0,
-        section_scores: {},
-        created_at: '2024-01-24T14:00:00Z',
-        updated_at: '2024-01-24T14:00:00Z'
-      }
-    ];
+        // Fetch available exams
+        const examsResponse = await mockExamsApi.getExams();
+        const examsData = Array.isArray(examsResponse) ? examsResponse : (examsResponse as any)?.data || [];
+        setExams(examsData);
 
-    setTimeout(() => {
-      setExams(mockExams);
-      setAttempts(mockAttempts);
-      setIsLoading(false);
-    }, 1000);
+        // Fetch user's attempts
+        const attemptsResponse = await mockExamsApi.getMyAttempts();
+        const attemptsData = Array.isArray(attemptsResponse) ? attemptsResponse : (attemptsResponse as any)?.data || [];
+        setAttempts(attemptsData);
+
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const startExam = (exam: MockExam) => {
-    const session: ExamSession = {
-      id: Date.now(),
-      mock_exam: exam,
-      started_at: new Date().toISOString(),
-      current_section: 'Math - No Calculator',
-      time_remaining: exam.time_limit_minutes * 60,
-      questions_answered: 0,
-      total_questions: exam.total_questions
-    };
-    setCurrentSession(session);
-    setIsExamMode(true);
+  const startExam = async (exam: MockExam) => {
+    try {
+      const response = await mockExamsApi.startExam(exam.id);
+      // Navigate to the Bluebook-style exam interface
+      router.push(`/mockexams/${exam.id}`);
+    } catch (error) {
+      console.error('Failed to start exam:', error);
+    }
   };
 
-  const pauseExam = () => {
-    // TODO: Implement pause functionality
-    console.log('Pausing exam');
-  };
 
-  const submitExam = () => {
-    // TODO: Implement submit functionality
-    setIsExamMode(false);
-    setCurrentSession(null);
-  };
 
   const getExamTypeColor = (type: string) => {
     switch (type) {
@@ -206,87 +135,7 @@ export default function MockExamsPage() {
     );
   }
 
-  if (isExamMode && currentSession) {
-    return (
-      <AuthGuard>
-        <DashboardLayout>
-          <div className="max-w-6xl mx-auto">
-            {/* Exam Header */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h1 className="text-2xl font-bold text-gray-900">{currentSession.mock_exam.title}</h1>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={pauseExam}
-                    className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <Pause className="h-4 w-4 mr-2" />
-                    Pause
-                  </button>
-                  <button
-                    onClick={submitExam}
-                    className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <Square className="h-4 w-4 mr-2" />
-                    Submit Exam
-                  </button>
-                </div>
-              </div>
-              
-              {/* Exam Stats */}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <Timer className="h-5 w-5 text-red-500 mr-2" />
-                    <span className="text-2xl font-bold text-red-500">
-                      {Math.floor(currentSession.time_remaining / 60)}:{(currentSession.time_remaining % 60).toString().padStart(2, '0')}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500">Time Remaining</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">
-                    {currentSession.current_section}
-                  </p>
-                  <p className="text-sm text-gray-500">Current Section</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">
-                    {currentSession.questions_answered}/{currentSession.total_questions}
-                  </p>
-                  <p className="text-sm text-gray-500">Questions Answered</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-purple-600">
-                    {Math.round((currentSession.questions_answered / currentSession.total_questions) * 100)}%
-                  </p>
-                  <p className="text-sm text-gray-500">Progress</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Exam Content */}
-            <div className="bg-white rounded-lg shadow p-8">
-              <div className="text-center py-16">
-                <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Exam in Progress</h2>
-                <p className="text-gray-600 mb-6">
-                  This is a placeholder for the actual exam interface. In a real implementation, this would contain:
-                </p>
-                <ul className="text-left text-gray-600 max-w-md mx-auto space-y-2">
-                  <li>• Current question with multiple choice options</li>
-                  <li>• Navigation between questions</li>
-                  <li>• Section switching functionality</li>
-                  <li>• Real-time timer updates</li>
-                  <li>• Answer saving and validation</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </DashboardLayout>
-      </AuthGuard>
-    );
-  }
 
   return (
     <AuthGuard>
@@ -352,6 +201,90 @@ export default function MockExamsPage() {
             </div>
           </div>
 
+          {/* Bluebook Digital SAT Section */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-600 text-white p-2 rounded-lg">
+                  <BookOpen className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Bluebook Digital SAT</h2>
+                  <p className="text-gray-600">Official Digital SAT practice with adaptive difficulty</p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/mockexams/bluebook')}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Start Digital SAT
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-600 text-white p-2 rounded-lg">
+                  <Timer className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">2h 14min</p>
+                  <p className="text-sm text-gray-600">Total duration</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="bg-green-600 text-white p-2 rounded-lg">
+                  <Target className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">Adaptive</p>
+                  <p className="text-sm text-gray-600">2 modules per section</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="bg-purple-600 text-white p-2 rounded-lg">
+                  <BookOpen className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">4 Modules</p>
+                  <p className="text-sm text-gray-600">R&W + Math</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="bg-orange-600 text-white p-2 rounded-lg">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">400-1600</p>
+                  <p className="text-sm text-gray-600">SAT scoring</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-semibold text-gray-900 mb-2">Digital SAT Structure:</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="font-medium text-blue-800">Reading & Writing (64 min):</p>
+                  <p className="text-gray-600">• Module 1: 32 min (27 questions)</p>
+                  <p className="text-gray-600">• Module 2: 32 min (27 questions)</p>
+                </div>
+                <div>
+                  <p className="font-medium text-blue-800">Math (70 min):</p>
+                  <p className="text-gray-600">• Module 1: 35 min (22 questions)</p>
+                  <p className="text-gray-600">• Module 2: 35 min (22 questions)</p>
+                </div>
+              </div>
+              <div className="mt-3 p-3 bg-blue-100 rounded-lg border border-blue-300">
+                <p className="font-medium text-blue-900">Official Digital SAT Format:</p>
+                <p className="text-sm text-gray-700">• 4 modules total (2 per section)</p>
+                <p className="text-sm text-gray-700">• 32 minutes per module</p>
+                <p className="text-sm text-gray-700">• Module 2 adapts based on Module 1 performance</p>
+                <p className="text-sm text-gray-700">• No cross-module navigation allowed</p>
+              </div>
+            </div>
+          </div>
+
           {/* Available Exams */}
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Exams</h2>
@@ -413,13 +346,12 @@ export default function MockExamsPage() {
                           <h3 className="text-lg font-semibold text-gray-900 mr-3">
                             {attempt.mock_exam.title}
                           </h3>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            attempt.is_completed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${attempt.is_completed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
                             {attempt.is_completed ? 'Completed' : 'In Progress'}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center space-x-6 text-sm text-gray-500">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1" />
@@ -460,19 +392,7 @@ export default function MockExamsPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => {
-                              const session: ExamSession = {
-                                id: attempt.id,
-                                mock_exam: attempt.mock_exam,
-                                started_at: attempt.started_at,
-                                current_section: 'Math - No Calculator',
-                                time_remaining: 60 * 60, // 1 hour remaining
-                                questions_answered: 25,
-                                total_questions: attempt.mock_exam.total_questions
-                              };
-                              setCurrentSession(session);
-                              setIsExamMode(true);
-                            }}
+                            onClick={() => router.push(`/mockexams/${attempt.mock_exam.id}`)}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                           >
                             <Play className="h-4 w-4" />

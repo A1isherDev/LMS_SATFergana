@@ -3,46 +3,23 @@
 import { useState, useEffect, useRef } from 'react';
 import AuthGuard from '../../components/AuthGuard';
 import DashboardLayout from '../../components/DashboardLayout';
-import { 
-  Brain, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  Brain,
+  CheckCircle,
+  XCircle,
+  Clock,
   BookOpen,
   Search,
   Play,
   Star,
   ArrowLeft,
-  TrendingUp,
   Repeat
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, getSubjectColor } from '../../utils/helpers';
 import { flashcardsApi } from '../../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface Flashcard {
-  id: number;
-  word: string;
-  definition: string;
-  pronunciation?: string;
-  example_sentence: string;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
-  subject: 'MATH' | 'READING' | 'WRITING';
-  created_at: string;
-}
-
-interface FlashcardProgress {
-  id: number;
-  flashcard: number;
-  easiness_factor: number;
-  repetition_count: number;
-  interval_days: number;
-  next_review_date: string;
-  last_reviewed_at?: string;
-  is_mastered: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import { Flashcard, FlashcardProgress, ApiResponse } from '../../types';
 
 interface ReviewSession {
   id: number;
@@ -80,95 +57,17 @@ export default function FlashcardsPage() {
   const loadFlashcards = async () => {
     try {
       setIsLoading(true);
-      // TODO: Replace with actual API call
-      // const response = await flashcardsApi.getFlashcards();
-      // const progressResponse = await flashcardsApi.getProgress();
-      
-      // Mock data for now
-      const mockFlashcards: Flashcard[] = [
-        {
-          id: 1,
-          word: 'Ubiquitous',
-          definition: 'Present, appearing, or found everywhere',
-          pronunciation: 'yoo-BIK-wi-tuhs',
-          example_sentence: 'Smartphones have become ubiquitous in modern society.',
-          difficulty: 'MEDIUM',
-          subject: 'READING',
-          created_at: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: 2,
-          word: 'Quadratic',
-          definition: 'Involving the second and no higher power of an unknown quantity or variable',
-          pronunciation: 'kwo-DRAT-ik',
-          example_sentence: 'The quadratic equation x² + 5x + 6 = 0 has two solutions.',
-          difficulty: 'HARD',
-          subject: 'MATH',
-          created_at: '2024-01-16T14:30:00Z'
-        },
-        {
-          id: 3,
-          word: 'Concise',
-          definition: 'Giving a lot of information clearly and in a few words; brief but comprehensive',
-          pronunciation: 'kun-SISE',
-          example_sentence: 'The professor gave a concise explanation of the complex theory.',
-          difficulty: 'EASY',
-          subject: 'WRITING',
-          created_at: '2024-01-17T09:15:00Z'
-        },
-        {
-          id: 4,
-          word: 'Ephemeral',
-          definition: 'Lasting for a very short time',
-          pronunciation: 'ih-FEM-er-uhl',
-          example_sentence: 'The beauty of cherry blossoms is ephemeral, lasting only a few days.',
-          difficulty: 'MEDIUM',
-          subject: 'READING',
-          created_at: '2024-01-18T11:20:00Z'
-        },
-        {
-          id: 5,
-          word: 'Hypothesis',
-          definition: 'A supposition or proposed explanation made on the basis of limited evidence',
-          pronunciation: 'hy-POTH-uh-sis',
-          example_sentence: 'The scientist proposed a hypothesis to explain the unusual results.',
-          difficulty: 'MEDIUM',
-          subject: 'WRITING',
-          created_at: '2024-01-19T15:45:00Z'
-        }
-      ];
+      const [flashcardsResponse, progressResponse] = await Promise.all([
+        flashcardsApi.getFlashcards() as Promise<ApiResponse<Flashcard>>,
+        flashcardsApi.getProgress() as Promise<ApiResponse<FlashcardProgress>>
+      ]);
 
-      const mockProgress: FlashcardProgress[] = [
-        {
-          id: 1,
-          flashcard: 1,
-          easiness_factor: 2.5,
-          repetition_count: 3,
-          interval_days: 7,
-          next_review_date: '2024-01-31T10:00:00Z',
-          last_reviewed_at: '2024-01-24T10:00:00Z',
-          is_mastered: false,
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-24T10:00:00Z'
-        },
-        {
-          id: 2,
-          flashcard: 2,
-          easiness_factor: 1.3,
-          repetition_count: 1,
-          interval_days: 1,
-          next_review_date: '2024-01-25T14:30:00Z',
-          last_reviewed_at: '2024-01-24T14:30:00Z',
-          is_mastered: false,
-          created_at: '2024-01-16T14:30:00Z',
-          updated_at: '2024-01-24T14:30:00Z'
-        }
-      ];
-
-      setFlashcards(mockFlashcards);
-      setProgress(mockProgress);
+      setFlashcards(flashcardsResponse.results);
+      setProgress(progressResponse.results);
     } catch (error) {
       console.error('Error loading flashcards:', error);
+      setFlashcards([]);
+      setProgress([]);
     } finally {
       setIsLoading(false);
     }
@@ -176,28 +75,31 @@ export default function FlashcardsPage() {
 
   const updateCardProgress = async (flashcardId: number, isMastered: boolean) => {
     try {
-      // TODO: Replace with actual API call
-      // await flashcardsApi.updateProgress(flashcardId, { is_mastered: isMastered });
-      
+      await flashcardsApi.updateProgress(flashcardId, {
+        is_correct: isMastered,
+        time_taken_seconds: 5
+      });
+
       // Update local state
       setProgress(prev => {
         const existing = prev.find(p => p.flashcard === flashcardId);
         if (existing) {
-          return prev.map(p => 
-            p.flashcard === flashcardId 
-              ? { 
-                  ...p, 
-                  is_mastered: isMastered,
-                  repetition_count: p.repetition_count + 1,
-                  last_reviewed_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                }
+          return prev.map(p =>
+            p.flashcard === flashcardId
+              ? {
+                ...p,
+                is_mastered: isMastered,
+                repetition_count: p.repetition_count + 1,
+                last_reviewed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
               : p
           );
         } else {
           return [...prev, {
             id: Date.now(),
             flashcard: flashcardId,
+            student: user?.id || 0,
             easiness_factor: 2.5,
             repetition_count: 1,
             interval_days: isMastered ? 7 : 1,
@@ -243,12 +145,12 @@ export default function FlashcardsPage() {
 
   const filteredFlashcards = flashcards.filter(card => {
     const matchesSearch = card.word.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         card.definition.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         card.example_sentence.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      card.definition.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      card.example_sentence.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesSubject = filterSubject === 'all' || card.subject === filterSubject;
     const matchesDifficulty = filterDifficulty === 'all' || card.difficulty === filterDifficulty;
-    
+
     let matchesStatus = true;
     if (filterStatus !== 'all') {
       const status = getStatusText(card.id);
@@ -264,7 +166,7 @@ export default function FlashcardsPage() {
           break;
       }
     }
-    
+
     return matchesSearch && matchesSubject && matchesDifficulty && matchesStatus;
   });
 
@@ -299,7 +201,7 @@ export default function FlashcardsPage() {
     if (!currentSession) return;
 
     const isMastered = direction === 'right';
-    
+
     // Update progress
     await updateCardProgress(currentSession.current_card.id, isMastered);
 
@@ -313,7 +215,7 @@ export default function FlashcardsPage() {
 
     // Trigger swipe animation
     setSwipeDirection(direction);
-    
+
     setTimeout(() => {
       setSwipeDirection(null);
       moveToNextCard();
@@ -326,9 +228,9 @@ export default function FlashcardsPage() {
     const currentIndex = currentSession.remaining_cards.findIndex(
       card => card.id === currentSession.current_card.id
     );
-    
+
     const nextCards = currentSession.remaining_cards.slice(currentIndex + 1);
-    
+
     if (nextCards.length === 0) {
       // End of review session
       endReview();
@@ -358,7 +260,7 @@ export default function FlashcardsPage() {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStart) return;
-    
+
     setTouchCurrent({
       x: e.touches[0].clientX,
       y: e.touches[0].clientY
@@ -394,7 +296,7 @@ export default function FlashcardsPage() {
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!touchStart) return;
-    
+
     setTouchCurrent({
       x: e.clientX,
       y: e.clientY
@@ -421,16 +323,16 @@ export default function FlashcardsPage() {
 
   const getCardTransform = () => {
     if (!touchStart || !touchCurrent) return 'translateX(0) rotate(0deg)';
-    
+
     const deltaX = touchCurrent.x - touchStart.x;
     const rotation = deltaX / 20;
-    
+
     return `translateX(${deltaX}px) rotate(${rotation}deg)`;
   };
 
   const getCardOpacity = () => {
     if (!touchStart || !touchCurrent) return 1;
-    
+
     const deltaX = Math.abs(touchCurrent.x - touchStart.x);
     return Math.max(0.5, 1 - deltaX / 500);
   };
@@ -442,7 +344,7 @@ export default function FlashcardsPage() {
           <div className="animate-pulse">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-white rounded-lg shadow p-6">
+                <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
                   <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
                   <div className="h-3 bg-gray-200 rounded w-2/3"></div>
@@ -475,7 +377,7 @@ export default function FlashcardsPage() {
                   <ArrowLeft className="h-5 w-5 mr-2" />
                   <span className="font-medium">End Review</span>
                 </button>
-                
+
                 <div className="text-center">
                   <p className="text-3xl font-bold text-gray-900">
                     {currentIndex + 1} / {totalCards}
@@ -485,7 +387,7 @@ export default function FlashcardsPage() {
 
                 <div className="w-24"></div> {/* Spacer for alignment */}
               </div>
-              
+
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-red-50 rounded-lg p-4 text-center border-2 border-red-200">
                   <div className="flex items-center justify-center mb-2">
@@ -496,7 +398,7 @@ export default function FlashcardsPage() {
                   </p>
                   <p className="text-xs text-red-700 font-medium mt-1">Still Learning</p>
                 </div>
-                
+
                 <div className="bg-blue-50 rounded-lg p-4 text-center border-2 border-blue-200">
                   <div className="flex items-center justify-center mb-2">
                     <Repeat className="h-5 w-5 text-blue-600" />
@@ -506,7 +408,7 @@ export default function FlashcardsPage() {
                   </p>
                   <p className="text-xs text-blue-700 font-medium mt-1">Reviewed</p>
                 </div>
-                
+
                 <div className="bg-green-50 rounded-lg p-4 text-center border-2 border-green-200">
                   <div className="flex items-center justify-center mb-2">
                     <CheckCircle className="h-5 w-5 text-green-600" />
@@ -532,12 +434,11 @@ export default function FlashcardsPage() {
             </div>
 
             {/* Flashcard */}
-            <div 
+            <div
               ref={cardRef}
-              className={`bg-white rounded-2xl shadow-xl cursor-pointer select-none transition-all duration-300 ${
-                swipeDirection === 'left' ? 'opacity-0 -translate-x-full' :
+              className={`bg-white rounded-2xl shadow-xl cursor-pointer select-none transition-all duration-300 ${swipeDirection === 'left' ? 'opacity-0 -translate-x-full' :
                 swipeDirection === 'right' ? 'opacity-0 translate-x-full' : ''
-              }`}
+                }`}
               style={{
                 transform: swipeDirection ? undefined : getCardTransform(),
                 opacity: swipeDirection ? undefined : getCardOpacity(),
@@ -607,7 +508,7 @@ export default function FlashcardsPage() {
                           </p>
                         </div>
                       </div>
-                      
+
                       <p className="text-gray-400 text-sm">Swipe or click to continue</p>
                     </div>
                   )}
@@ -644,7 +545,7 @@ export default function FlashcardsPage() {
             {/* Progress Indicator */}
             <div className="mt-6">
               <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div 
+                <div
                   className="bg-blue-600 h-full transition-all duration-300"
                   style={{ width: `${((currentIndex + 1) / totalCards) * 100}%` }}
                 />
@@ -672,7 +573,7 @@ export default function FlashcardsPage() {
                 const status = getStatusText(card.id);
                 return status === 'Still Learning' || status === 'New';
               }).length === 0}
-              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md font-semibold"
             >
               <Play className="h-5 w-5 mr-2" />
               Start Review
@@ -681,52 +582,52 @@ export default function FlashcardsPage() {
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Cards</p>
-                  <p className="text-2xl font-bold text-gray-900">{flashcards.length}</p>
-                </div>
-                <BookOpen className="h-8 w-8 text-blue-600" />
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cards</p>
+                <p className="text-2xl font-black text-gray-900 mt-1">{flashcards.length}</p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-xl">
+                <BookOpen className="h-6 w-6 text-blue-600" />
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Mastered</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {progress.filter(p => p.is_mastered).length}
-                  </p>
-                </div>
-                <Star className="h-8 w-8 text-green-600" />
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Mastered</p>
+                <p className="text-2xl font-black text-green-600 mt-1">
+                  {progress.filter(p => p.is_mastered).length}
+                </p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-xl">
+                <Star className="h-6 w-6 text-green-600" />
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Still Learning</p>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {flashcards.filter(card => getStatusText(card.id) === 'Still Learning').length}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-orange-600" />
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Learning</p>
+                <p className="text-2xl font-black text-orange-600 mt-1">
+                  {flashcards.filter(card => getStatusText(card.id) === 'Still Learning').length}
+                </p>
+              </div>
+              <div className="p-3 bg-orange-50 rounded-xl">
+                <Clock className="h-6 w-6 text-orange-600" />
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">New Cards</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {flashcards.filter(card => getStatusText(card.id) === 'New').length}
-                  </p>
-                </div>
-                <Brain className="h-8 w-8 text-purple-600" />
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">New Cards</p>
+                <p className="text-2xl font-black text-purple-600 mt-1">
+                  {flashcards.filter(card => getStatusText(card.id) === 'New').length}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-50 rounded-xl">
+                <Brain className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </div>
 
           {/* Search and Filter */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -776,7 +677,7 @@ export default function FlashcardsPage() {
             {filteredFlashcards.map((card) => {
               const cardProgress = progress.find(p => p.flashcard === card.id);
               return (
-                <div key={card.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-all transform hover:-translate-y-1">
+                <div key={card.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all transform hover:-translate-y-1">
                   <div className="p-6">
                     {/* Card Header */}
                     <div className="flex items-center justify-between mb-4">
@@ -796,7 +697,7 @@ export default function FlashcardsPage() {
                     {/* Card Content */}
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">{card.word}</h3>
                     <p className="text-gray-600 text-sm mb-3 line-clamp-2">{card.definition}</p>
-                    <p className="text-gray-500 text-xs italic mb-4 line-clamp-2">"{card.example_sentence}"</p>
+                    <p className="text-gray-500 text-xs italic mb-4 line-clamp-2">&quot;{card.example_sentence}&quot;</p>
 
                     {/* Progress Info */}
                     {cardProgress && (

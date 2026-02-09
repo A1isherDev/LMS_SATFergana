@@ -28,7 +28,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const router = useRouter();
   const { login } = useAuth();
 
@@ -86,13 +86,12 @@ export default function LoginPage() {
                 Email address
               </label>
               <input
+                id="email"
+                data-testid="email-input"
                 {...register('email')}
                 type="email"
                 autoComplete="email"
-                className={cn(
-                  'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm',
-                  errors.email && 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                )}
+                className={`mt-1 block w-full px-3 py-2 border ${errors.email ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
                 placeholder="Enter your email"
               />
               {errors.email && (
@@ -107,6 +106,8 @@ export default function LoginPage() {
               </label>
               <div className="mt-1 relative">
                 <input
+                  id="password"
+                  data-testid="password-input"
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
@@ -138,6 +139,7 @@ export default function LoginPage() {
           <div>
             <button
               type="submit"
+              data-testid="submit-button"
               disabled={isLoading}
               className={cn(
                 'group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500',

@@ -121,19 +121,59 @@ class HomeworkSerializer(serializers.ModelSerializer):
 
 class HomeworkListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for homework lists."""
-    class_name = serializers.CharField(source='class_obj.name', read_only=True)
     teacher_name = serializers.CharField(source='assigned_by.get_full_name', read_only=True)
     total_questions = serializers.ReadOnlyField()
     is_overdue = serializers.ReadOnlyField()
     days_until_due = serializers.ReadOnlyField()
+    difficulty_level = serializers.CharField(read_only=True)
+    
+    class_obj = serializers.SerializerMethodField()
+    assigned_by = serializers.SerializerMethodField()
+    submission = serializers.SerializerMethodField()
     
     class Meta:
         model = Homework
         fields = [
-            'id', 'title', 'class_name', 'teacher_name', 'due_date',
-            'max_score', 'is_published', 'total_questions',
-            'is_overdue', 'days_until_due', 'created_at'
+            'id', 'title', 'description', 'class_obj', 'assigned_by', 
+            'teacher_name', 'due_date', 'max_score', 'is_published', 
+            'total_questions', 'is_overdue', 'days_until_due', 
+            'difficulty_level', 'submission', 'created_at'
         ]
+
+    def get_class_obj(self, obj):
+        """Get summarized class object."""
+        return {
+            'id': obj.class_obj.id,
+            'name': obj.class_obj.name
+        }
+
+    def get_assigned_by(self, obj):
+        """Get summarized teacher object."""
+        return {
+            'id': obj.assigned_by.id,
+            'first_name': obj.assigned_by.first_name,
+            'last_name': obj.assigned_by.last_name
+        }
+
+    def get_submission(self, obj):
+        """Get current student's submission status and score."""
+        user = self.context['request'].user
+        if not user.is_authenticated or not hasattr(user, 'role') or user.role != 'STUDENT':
+            return None
+        
+        try:
+            submission = obj.submissions.get(student=user)
+            return {
+                'id': submission.id,
+                'is_submitted': submission.is_submitted,
+                'score': submission.score,
+                'max_score': obj.max_score,
+                'accuracy_percentage': submission.accuracy_percentage,
+                'is_late': submission.is_late,
+                'submitted_at': submission.submitted_at
+            }
+        except HomeworkSubmission.DoesNotExist:
+            return None
 
 
 class HomeworkSubmissionSerializer(serializers.ModelSerializer):

@@ -54,11 +54,10 @@ api.interceptors.response.use(
         // Refresh failed, but don't immediately logout
         // Only clear tokens and redirect if it's a clear auth failure
         console.error('Token refresh failed:', refreshError);
-        
+
         // Check if this is an authentication failure
-        if (refreshError && typeof refreshError === 'object' && 'response' in refreshError) {
-          const response = (refreshError as any).response;
-          if (response?.status === 401) {
+        if (axios.isAxiosError(refreshError) && refreshError.response) {
+          if (refreshError.response.status === 401) {
             // Clear tokens and redirect only for clear auth failures
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
@@ -76,32 +75,32 @@ api.interceptors.response.use(
 // Generic API methods
 export const apiClient = {
   // GET requests
-  get: async <T>(url: string, params?: Record<string, any>): Promise<T> => {
-    const response = await api.get<T>(url, { params });
+  get: async <T>(url: string, config?: any): Promise<T> => {
+    const response = await api.get<T>(url, config);
     return response.data;
   },
 
   // POST requests
-  post: async <T>(url: string, data?: any): Promise<T> => {
-    const response = await api.post<T>(url, data);
+  post: async <T>(url: string, data?: any, config?: any): Promise<T> => {
+    const response = await api.post<T>(url, data, config);
     return response.data;
   },
 
   // PUT requests
-  put: async <T>(url: string, data?: any): Promise<T> => {
-    const response = await api.put<T>(url, data);
+  put: async <T>(url: string, data?: any, config?: any): Promise<T> => {
+    const response = await api.put<T>(url, data, config);
     return response.data;
   },
 
   // PATCH requests
-  patch: async <T>(url: string, data?: any): Promise<T> => {
-    const response = await api.patch<T>(url, data);
+  patch: async <T>(url: string, data?: any, config?: any): Promise<T> => {
+    const response = await api.patch<T>(url, data, config);
     return response.data;
   },
 
   // DELETE requests
-  delete: async <T>(url: string): Promise<T> => {
-    const response = await api.delete<T>(url);
+  delete: async <T>(url: string, config?: any): Promise<T> => {
+    const response = await api.delete<T>(url, config);
     return response.data;
   },
 };
@@ -158,11 +157,15 @@ export const usersApi = {
   },
 
   getInvitations: async () => {
-    return apiClient.get('/users/invitations/');
+    return apiClient.get('/invitations/');
   },
 
   createInvitation: async (data: { email: string; role: string }) => {
-    return apiClient.post('/users/invitations/', data);
+    return apiClient.post('/invitations/', data);
+  },
+
+  deleteInvitation: async (id: number) => {
+    return apiClient.delete(`/invitations/${id}/`);
   },
 
   getStudentProfile: async () => {
@@ -175,6 +178,93 @@ export const usersApi = {
 
   updateExamDate: async (examDate: string) => {
     return apiClient.patch('/student-profiles/exam_date/', { sat_exam_date: examDate });
+  },
+
+  updateStreak: async () => {
+    return apiClient.post('/users/update_streak/');
+  },
+};
+
+// Admin API methods
+export const adminApi = {
+  getUsers: async (params?: { search?: string; role?: string; page?: number }) => {
+    return apiClient.get('/users/', params);
+  },
+
+  updateUser: async (id: number, data: any) => {
+    return apiClient.patch(`/users/${id}/`, data);
+  },
+
+  deleteUser: async (id: number) => {
+    return apiClient.delete(`/users/${id}/`);
+  },
+
+  getSystemStats: async () => {
+    return apiClient.get('/analytics/system/stats/');
+  },
+
+  getSystemConfig: async () => {
+    return apiClient.get('/admin/config/');
+  },
+
+  updateSystemConfig: async (data: any) => {
+    return apiClient.post('/admin/config/update/', data);
+  },
+
+  getSystemLogs: async (params?: { level?: string; limit?: number }) => {
+    return apiClient.get('/analytics/system/logs/', { params });
+  }
+};
+
+// Analytics API methods moved here and merged
+export const analyticsApi = {
+  getStudentProgress: async () => {
+    return apiClient.get('/analytics/student-progress/my_progress/');
+  },
+  getProgressChart: async (params?: { period?: string; metric?: string }) => {
+    return apiClient.get('/analytics/student-progress/progress_chart/', params);
+  },
+  getMyWeakAreas: async () => {
+    return apiClient.get('/analytics/weak-areas/my_weak_areas/');
+  },
+  getMySessions: async (params?: { start_date?: string; end_date?: string }) => {
+    return apiClient.get('/analytics/study-sessions/my_sessions/', params);
+  },
+  getStudentSummary: async () => {
+    return apiClient.get('/analytics/student_summary/');
+  },
+  getStudentSummaryById: async (studentId: number) => {
+    return apiClient.get('/analytics/student_summary/', { student_id: studentId });
+  },
+  getClassAnalytics: async (classId: number) => {
+    return apiClient.get(`/analytics/class_analytics/${classId}/`);
+  },
+  getDashboardStats: async () => {
+    return apiClient.get('/dashboard/stats/');
+  },
+  getSystemHealth: async () => {
+    return apiClient.get('/system/health/');
+  },
+  getPerformanceTrends: async (params?: { period_type?: string }) => {
+    return apiClient.get('/analytics/student-progress/performance_trends/', params);
+  },
+  startStudySession: async (sessionType: string = 'practice') => {
+    return apiClient.post('/analytics/study-sessions/', { session_type: sessionType });
+  },
+  endStudySession: async (sessionId: number) => {
+    return apiClient.patch(`/analytics/study-sessions/${sessionId}/`, { ended_at: new Date().toISOString() });
+  },
+  updateActiveSession: async (sessionId: number, data: { duration_minutes?: number, questions_attempted?: number, questions_correct?: number, flashcards_reviewed?: number }) => {
+    return apiClient.patch(`/analytics/study-sessions/${sessionId}/`, data);
+  },
+  getActiveSession: async () => {
+    return apiClient.get('/analytics/study-sessions/active_session/');
+  },
+  getTopicAnalytics: async () => {
+    return apiClient.get('/analytics/weak-areas/topic_analytics/');
+  },
+  exportAnalytics: async () => {
+    return api.get('/analytics/student-progress/export_analytics/', { responseType: 'blob' });
   },
 };
 
@@ -204,8 +294,61 @@ export const classesApi = {
     return apiClient.delete(`/classes/${id}/`);
   },
 
-  getClassLeaderboard: async (id: number) => {
-    return apiClient.get(`/classes/${id}/leaderboard/`);
+  getClassLeaderboard: async (id: number, period: string = 'all_time') => {
+    return apiClient.get(`/classes/${id}/leaderboard/?period=${period}`);
+  },
+
+  postAnnouncement: async (id: number, data: { title: string, content: string }) => {
+    return apiClient.post(`/classes/${id}/post_announcement/`, data);
+  },
+
+  getAnnouncements: async (id: number) => {
+    return apiClient.get(`/classes/${id}/announcements/`);
+  },
+
+  getGradebook: async (id: number) => {
+    return apiClient.get(`/classes/${id}/gradebook/`);
+  },
+
+  getResources: async (params?: { class_id?: number }) => {
+    return apiClient.get('/class-resources/', { params });
+  },
+
+  createResource: async (data: any) => {
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== null) {
+        formData.append(key, data[key]);
+      }
+    });
+    return apiClient.post('/class-resources/', formData);
+  },
+
+  deleteResource: async (id: number) => {
+    return apiClient.delete(`/class-resources/${id}/`);
+  },
+};
+
+// Questions API methods
+export const questionsApi = {
+  getQuestions: async (params?: any) => {
+    return apiClient.get('/questions/', { params });
+  },
+
+  getQuestion: async (id: number) => {
+    return apiClient.get(`/questions/${id}/`);
+  },
+
+  getPracticeQuestions: async (params?: { count?: number; skill_tag?: string; difficulty?: string; question_type?: string }) => {
+    return apiClient.get('/questions/practice/', { params });
+  },
+
+  submitAttempt: async (id: number, data: { selected_option?: string; grid_answer?: string; time_spent_seconds?: number, context?: string }) => {
+    return apiClient.post(`/questions/${id}/attempt/`, data);
+  },
+
+  getStats: async (params?: any) => {
+    return apiClient.get('/questions/stats/', { params });
   },
 };
 
@@ -216,7 +359,7 @@ export const homeworkApi = {
   },
 
   getStudentHomework: async () => {
-    return apiClient.get('/homework/my_progress/');
+    return apiClient.get('/homework/');
   },
 
   getHomeworkDetail: async (id: number) => {
@@ -227,16 +370,25 @@ export const homeworkApi = {
     return apiClient.post('/homework/', data);
   },
 
+  bulkCreateHomework: async (data: any[]) => {
+    return apiClient.post('/homework/bulk_create/', data);
+  },
+
   submitHomework: async (id: number, data: any) => {
-    return apiClient.post(`/homework/${id}/submissions/`, data);
+    return apiClient.post(`/homework/${id}/submit/`, data);
   },
 
   getMySubmissions: async () => {
-    return apiClient.get('/homework/my_submissions/');
+    return apiClient.get('/submissions/');
   },
-
-  getSubmission: async (homeworkId: number, submissionId: number) => {
-    return apiClient.get(`/homework/${homeworkId}/submissions/${submissionId}/`);
+  getStudentProgress: async () => {
+    return apiClient.get('/submissions/my_progress/');
+  },
+  exportGrades: async (params?: { class_id?: number }) => {
+    return apiClient.get('/homework/export_grades/', { params, responseType: 'blob' });
+  },
+  getSubmission: async (submissionId: number) => {
+    return apiClient.get(`/submissions/${submissionId}/`);
   },
 };
 
@@ -257,6 +409,18 @@ export const questionBankApi = {
     return apiClient.get(`/questionbank/questions/${id}/`);
   },
 
+  createQuestion: async (data: any) => {
+    return apiClient.post('/questionbank/questions/', data);
+  },
+
+  updateQuestion: async (id: number, data: any) => {
+    return apiClient.patch(`/questionbank/questions/${id}/`, data);
+  },
+
+  deleteQuestion: async (id: number) => {
+    return apiClient.delete(`/questionbank/questions/${id}/`);
+  },
+
   submitAttempt: async (data: {
     question: number;
     selected_answer: string;
@@ -275,10 +439,91 @@ export const questionBankApi = {
   },
 };
 
+// Bluebook Digital SAT API methods
+export const bluebookApi = {
+  getExams: async () => {
+    return apiClient.get('/bluebook/exams/');
+  },
+
+  getExam: async (id: number) => {
+    return apiClient.get(`/bluebook/exams/${id}/`);
+  },
+
+  getExamStructure: async (id: number) => {
+    return apiClient.get(`/bluebook/exams/${id}/structure/`);
+  },
+
+  startExam: async (id: number) => {
+    return apiClient.post(`/bluebook/exams/${id}/start_attempt/`);
+  },
+
+  getAttempts: async () => {
+    return apiClient.get('/bluebook/attempts/');
+  },
+
+  getAttempt: async (id: number) => {
+    return apiClient.get(`/bluebook/attempts/${id}/`);
+  },
+
+  startAttempt: async (id: number) => {
+    return apiClient.post(`/bluebook/attempts/${id}/start_exam/`);
+  },
+
+  getStatus: async (id: number) => {
+    return apiClient.get(`/bluebook/attempts/${id}/status/`);
+  },
+
+  getCurrentModule: async (id: number) => {
+    return apiClient.get(`/bluebook/attempts/${id}/current_module/`);
+  },
+
+  submitModule: async (id: number, data: {
+    answers: Record<string, string>;
+    flagged_questions?: number[]
+  }) => {
+    return apiClient.post(`/bluebook/attempts/${id}/submit_module/`, data);
+  },
+
+  flagQuestion: async (id: number, data: {
+    question_id: number;
+    flagged: boolean
+  }) => {
+    return apiClient.post(`/bluebook/attempts/${id}/flag_question/`, data);
+  },
+
+  getResults: async (id: number) => {
+    return apiClient.get(`/bluebook/attempts/${id}/results/`);
+  },
+
+  completeExam: async (id: number) => {
+    return apiClient.post(`/bluebook/attempts/${id}/complete_exam/`);
+  },
+
+  getAnalytics: async () => {
+    return apiClient.get('/bluebook/analytics/performance_analytics/');
+  },
+
+  getAdaptivePerformance: async () => {
+    return apiClient.get('/bluebook/analytics/adaptive_performance/');
+  },
+
+  getExamStatistics: async () => {
+    return apiClient.get('/bluebook/management/exam_statistics/');
+  },
+};
+
 // Mock Exams API methods
 export const mockExamsApi = {
   getExams: async () => {
     return apiClient.get('/mock-exams/');
+  },
+
+  createExam: async (data: any) => {
+    return apiClient.post('/mock-exams/', data);
+  },
+
+  updateExam: async (id: number, data: any) => {
+    return apiClient.patch(`/mock-exams/${id}/`, data);
   },
 
   getExam: async (id: number) => {
@@ -289,12 +534,20 @@ export const mockExamsApi = {
     return apiClient.post(`/mock-exams/${id}/start/`);
   },
 
-  submitExam: async (id: number, data: any) => {
-    return apiClient.post(`/mock-exams/${id}/submit/`, data);
+  getExamSections: async (id: number) => {
+    return apiClient.get(`/mock-exams/${id}/sections/`);
+  },
+
+  submitSection: async (id: number, data: { section: string; answers: Record<string, string>; time_spent_seconds: number }) => {
+    return apiClient.post(`/mock-exams/${id}/submit_section/`, data);
+  },
+
+  submitExam: async (id: number) => {
+    return apiClient.post(`/mock-exams/${id}/submit_exam/`);
   },
 
   getMyAttempts: async () => {
-    return apiClient.get('/mock-exam-attempts/');
+    return apiClient.get('/mock-exam-attempts/my_attempts/');
   },
 
   getAttempt: async (id: number) => {
@@ -302,7 +555,61 @@ export const mockExamsApi = {
   },
 
   getExamStatistics: async () => {
-    return apiClient.get('/mock-exams/statistics/');
+    return apiClient.get('/mock-exams/stats/');
+  },
+
+  // Bluebook-specific API methods
+  getExamAnalytics: async (examId: number) => {
+    return apiClient.get(`/mock-exams/${examId}/analytics/`);
+  },
+
+  getPerformanceTrends: async (params?: { time_range?: string; exam_type?: string }) => {
+    return apiClient.get('/mock-exams/performance_trends/', { params });
+  },
+
+  getWeakAreasAnalysis: async (examId?: number) => {
+    const url = examId ? `/mock-exams/${examId}/weak_areas/` : '/mock-exams/weak_areas/';
+    return apiClient.get(url);
+  },
+
+  getComparativeAnalysis: async (examId: number) => {
+    return apiClient.get(`/mock-exams/${examId}/comparative_analysis/`);
+  },
+
+  getScorePrediction: async (examId: number) => {
+    return apiClient.get(`/mock-exams/${examId}/score_prediction/`);
+  },
+
+  saveQuestionResponse: async (examId: number, data: {
+    question_id: number;
+    answer: string;
+    time_spent_seconds: number;
+    marked_for_review?: boolean;
+  }) => {
+    return apiClient.post(`/mock-exams/${examId}/save_response/`, data);
+  },
+
+  getRemainingTime: async (examId: number) => {
+    return apiClient.get(`/mock-exams/${examId}/remaining_time/`);
+  },
+
+  pauseExam: async (examId: number) => {
+    return apiClient.post(`/mock-exams/${examId}/pause/`);
+  },
+
+  resumeExam: async (examId: number) => {
+    return apiClient.post(`/mock-exams/${examId}/resume/`);
+  },
+
+  getAdaptiveRecommendations: async (examId: number) => {
+    return apiClient.get(`/mock-exams/${examId}/adaptive_recommendations/`);
+  },
+
+  exportResults: async (examId: number, format: 'pdf' | 'json' = 'pdf') => {
+    return apiClient.get(`/mock-exams/${examId}/export/`, {
+      params: { format },
+      responseType: 'blob'
+    });
   },
 };
 
@@ -319,6 +626,18 @@ export const flashcardsApi = {
 
   getFlashcard: async (id: number) => {
     return apiClient.get(`/flashcards/${id}/`);
+  },
+
+  createFlashcard: async (data: any) => {
+    return apiClient.post('/flashcards/', data);
+  },
+
+  updateFlashcard: async (id: number, data: any) => {
+    return apiClient.patch(`/flashcards/${id}/`, data);
+  },
+
+  deleteFlashcard: async (id: number) => {
+    return apiClient.delete(`/flashcards/${id}/`);
   },
 
   getProgress: async () => {
@@ -368,48 +687,7 @@ export const rankingsApi = {
   },
 };
 
-// Analytics API methods
-export const analyticsApi = {
-  getMyProgress: async (params?: { start_date?: string; end_date?: string }) => {
-    return apiClient.get('/analytics/progress/my_progress/', { params });
-  },
-
-  getProgressChart: async (params?: { period?: string; metric?: string }) => {
-    return apiClient.get('/analytics/progress/progress_chart/', { params });
-  },
-
-  getMyWeakAreas: async () => {
-    return apiClient.get('/analytics/weak_areas/my_weak_areas/');
-  },
-
-  getMySessions: async (params?: { start_date?: string; end_date?: string }) => {
-    return apiClient.get('/analytics/study_sessions/my_sessions/', { params });
-  },
-
-  getStudentSummary: async () => {
-    return apiClient.get('/analytics/student_summary/');
-  },
-
-  getClassAnalytics: async (classId: number) => {
-    return apiClient.get(`/analytics/class_analytics/${classId}/`);
-  },
-
-  getDashboardStats: async () => {
-    return apiClient.get('/dashboard/stats/');
-  },
-
-  startStudySession: async (sessionType: string = 'practice') => {
-    return apiClient.post('/weak-areas/start_study_session/', { session_type: sessionType });
-  },
-
-  endStudySession: async (sessionId?: number) => {
-    return apiClient.post('/weak-areas/end_study_session/', sessionId ? { session_id: sessionId } : {});
-  },
-
-  getActiveSession: async () => {
-    return apiClient.get('/weak-areas/active_session/');
-  },
-};
+// Duplicated analyticsApi removed from here
 
 // Utility functions
 export const setAuthTokens = (tokens: { access: string; refresh: string }) => {
@@ -430,31 +708,48 @@ export const isAuthenticated = (): boolean => {
 };
 
 // Error handling
-export const handleApiError = (error: any): string => {
-  if (error.response?.data) {
+export const handleApiError = (error: unknown): string => {
+  if (axios.isAxiosError(error) && error.response?.data) {
     const data = error.response.data;
-    
+
     // Handle field-specific errors
     if (typeof data === 'object' && data !== null) {
-      if (data.detail) {
-        return data.detail;
+      const dataObj = data as Record<string, unknown>;
+      if (typeof dataObj.detail === 'string') {
+        return dataObj.detail;
       }
-      
+
       // Handle validation errors
-      const errors = Object.values(data).flat();
-      if (errors.length > 0) {
-        return errors[0] as string;
+      const errors = Object.values(dataObj).flat();
+      if (errors.length > 0 && typeof errors[0] === 'string') {
+        return errors[0];
       }
     }
-    
+
     return 'An error occurred';
   }
-  
-  if (error.message) {
+
+  if (error instanceof Error) {
     return error.message;
   }
-  
+
   return 'Network error occurred';
+};
+
+// Notifications API methods
+export const notificationsApi = {
+  getNotifications: async (params?: { is_read?: boolean }) => {
+    return apiClient.get('/notifications/', { params });
+  },
+  markRead: async (id: number) => {
+    return apiClient.post(`/notifications/${id}/mark_read/`);
+  },
+  markAllRead: async () => {
+    return apiClient.post('/notifications/mark_all_read/');
+  },
+  getUnreadCount: async () => {
+    return apiClient.get('/notifications/unread_count/');
+  },
 };
 
 // Health check

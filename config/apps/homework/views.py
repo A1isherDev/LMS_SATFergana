@@ -8,6 +8,9 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from drf_spectacular.types import OpenApiTypes
 from django.db.models import Q, Count, Avg, F
 from django.utils import timezone
+from django.contrib.contenttypes.models import ContentType
+from django.http import HttpResponse
+import csv
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.homework.models import Homework, HomeworkSubmission
 from apps.homework.serializers import (
@@ -83,8 +86,29 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
     
     def perform_create(self, serializer):
-        """Set assigned_by to current user."""
-        serializer.save(assigned_by=self.request.user)
+        """Set assigned_by to current user and notify students if published."""
+        homework = serializer.save(assigned_by=self.request.user)
+        
+        if homework.is_published:
+            self._notify_students_new_homework(homework)
+
+    def _notify_students_new_homework(self, homework):
+        """Send notifications to all students in the class about new homework."""
+        from apps.notifications.models import Notification
+        homework_content_type = ContentType.objects.get_for_model(Homework)
+        
+        students = homework.class_obj.students.all()
+        notifications = [
+            Notification(
+                recipient=student,
+                actor=homework.assigned_by,
+                verb=f"assigned new homework: {homework.title}",
+                target_content_type=homework_content_type,
+                target_object_id=homework.id
+            )
+            for student in students
+        ]
+        Notification.objects.bulk_create(notifications)
     
     @extend_schema(
         summary="Submit homework",
@@ -236,6 +260,18 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             submission.feedback = feedback
             submission.save()
             
+            # Notify student that they received feedback
+            from apps.notifications.models import Notification
+            submission_content_type = ContentType.objects.get_for_model(HomeworkSubmission)
+            
+            Notification.objects.create(
+                recipient=submission.student,
+                actor=request.user,
+                verb=f"provided feedback on your submission for {homework.title}",
+                target_content_type=submission_content_type,
+                target_object_id=submission.id
+            )
+            
             return Response(
                 {"detail": "Feedback provided successfully"},
                 status=status.HTTP_200_OK
@@ -245,6 +281,101 @@ class HomeworkViewSet(viewsets.ModelViewSet):
                 {"detail": "Submission not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    @extend_schema(
+        summary="Bulk create homework",
+        description="Create multiple homework assignments at once (teachers/admins only).",
+        tags=["Homework"],
+        request=HomeworkSerializer(many=True),
+        responses={201: HomeworkSerializer(many=True)}
+    )
+    @action(detail=False, methods=['post'])
+    def bulk_create(self, request):
+        """Bulk create homework assignments."""
+        if not (request.user.is_teacher or request.user.is_admin):
+            return Response(
+                {"detail": "Only teachers and admins can bulk create homework"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if not isinstance(request.data, list):
+            return Response(
+                {"detail": "Expected a list of homework objects"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        created_homework = []
+        for hw_data in request.data:
+            serializer = HomeworkSerializer(data=hw_data, context={'request': request})
+            serializer.is_valid(raise_exception=True)
+            homework = serializer.save(assigned_by=request.user)
+            created_homework.append(homework)
+            
+            if homework.is_published:
+                self._notify_students_new_homework(homework)
+        
+        return Response(
+            HomeworkSerializer(created_homework, many=True).data,
+            status=status.HTTP_201_CREATED
+        )
+
+    @extend_schema(
+        summary="Export grades to CSV",
+        description="Download a CSV file containing homework grades.",
+        tags=["Homework"],
+    )
+    @action(detail=False, methods=['get'])
+    def export_grades(self, request):
+        """Export homework grades to CSV."""
+        user = request.user
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="grades_{user.email}_{timezone.now().date()}.csv"'
+        
+        writer = csv.writer(response)
+        
+        if user.is_student:
+            writer.writerow(['Homework Title', 'Due Date', 'Submitted At', 'Score', 'Accuracy %', 'Late', 'Feedback'])
+            
+            submissions = HomeworkSubmission.objects.filter(
+                student=user,
+                is_submitted=True
+            ).select_related('homework').order_by('-submitted_at')
+            
+            for sub in submissions:
+                writer.writerow([
+                    sub.homework.title,
+                    sub.homework.due_date,
+                    sub.submitted_at,
+                    sub.score,
+                    sub.accuracy_percentage,
+                    sub.is_late,
+                    sub.feedback or ''
+                ])
+        else:
+            # Teachers/Admins can export grades for a specific class
+            class_id = request.query_params.get('class_id')
+            if not class_id:
+                return Response({"detail": "class_id is required for teacher/admin export"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            writer.writerow(['Student Email', 'Homework Title', 'Submitted At', 'Score', 'Accuracy %', 'Late'])
+            
+            submissions = HomeworkSubmission.objects.filter(
+                homework__class_obj_id=class_id,
+                is_submitted=True
+            ).select_related('student', 'homework').order_by('student__email', '-submitted_at')
+            
+            for sub in submissions:
+                writer.writerow([
+                    sub.student.email,
+                    sub.homework.title,
+                    sub.submitted_at,
+                    sub.score,
+                    sub.accuracy_percentage,
+                    sub.is_late
+                ])
+                
+        return response
 
 
 class HomeworkSubmissionViewSet(viewsets.ModelViewSet):

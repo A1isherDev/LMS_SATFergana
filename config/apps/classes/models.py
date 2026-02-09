@@ -29,6 +29,13 @@ class Class(TimestampedModel):
     is_active = models.BooleanField(default=True, db_index=True)
     max_students = models.IntegerField(default=50, help_text="Maximum number of students")
     
+    # New field for schedule configuration
+    schedule_config = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Schedule configuration e.g. {'days': ['MON', 'WED'], 'time': '10:00'}"
+    )
+    
     class Meta:
         db_table = 'classes'
         indexes = [
@@ -72,3 +79,72 @@ class Class(TimestampedModel):
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
+
+
+class Announcement(TimestampedModel):
+    """
+    Model for class announcements posted by teachers.
+    """
+    class_obj = models.ForeignKey(
+        Class,
+        on_delete=models.CASCADE,
+        related_name='announcements',
+        db_index=True
+    )
+    teacher = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='posted_announcements',
+        db_index=True
+    )
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        db_table = 'class_announcements'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['class_obj', 'is_active']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"Announcement for {self.class_obj.name}: {self.title}"
+
+
+class ClassResource(TimestampedModel):
+    """
+    Model for teacher resources (PDFs, links, etc.)
+    """
+    RESOURCE_TYPES = (
+        ('PDF', 'PDF Document'),
+        ('LINK', 'External Link'),
+        ('VIDEO', 'Video'),
+        ('OTHER', 'Other'),
+    )
+
+    class_obj = models.ForeignKey(
+        Class,
+        on_delete=models.CASCADE,
+        related_name='resources',
+        db_index=True
+    )
+    teacher = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='uploaded_resources',
+        db_index=True
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    resource_type = models.CharField(max_length=10, choices=RESOURCE_TYPES, default='OTHER')
+    file = models.FileField(upload_to='class_resources/', blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
+    
+    class Meta:
+        db_table = 'class_resources'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title} ({self.get_resource_type_display()})"

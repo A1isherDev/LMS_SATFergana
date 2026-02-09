@@ -2,7 +2,7 @@
 Serializers for the classes app.
 """
 from rest_framework import serializers
-from apps.classes.models import Class
+from apps.classes.models import Class, Announcement, ClassResource
 from apps.users.serializers import UserSerializer
 
 
@@ -13,6 +13,7 @@ class ClassSerializer(serializers.ModelSerializer):
     current_student_count = serializers.ReadOnlyField()
     is_full = serializers.ReadOnlyField()
     has_ended = serializers.ReadOnlyField()
+    announcements = serializers.SerializerMethodField()
     teacher_id = serializers.IntegerField(write_only=True, required=False)
     student_count = serializers.SerializerMethodField()
     class_stats = serializers.SerializerMethodField()
@@ -23,9 +24,9 @@ class ClassSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'teacher', 'teacher_id', 'students',
             'start_date', 'end_date', 'is_active', 'max_students',
             'current_student_count', 'student_count', 'is_full', 'has_ended',
-            'class_stats', 'created_at', 'updated_at'
+            'class_stats', 'announcements', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'announcements', 'created_at', 'updated_at']
         extra_kwargs = {
             'start_date': {'required': False},
             'end_date': {'required': False},
@@ -51,10 +52,14 @@ class ClassSerializer(serializers.ModelSerializer):
             }
         
         # Get SAT scores
-        sat_scores = [getattr(student, 'studentprofile', None) and 
-                     getattr(student.studentprofile, 'target_sat_score', None) 
-                     for student in students]
-        sat_scores = [score for score in sat_scores if score is not None]
+        # Get SAT scores from actual mock exam attempts
+        from apps.mockexams.models import MockExamAttempt
+        attempts = MockExamAttempt.objects.filter(
+            student__in=students,
+            is_completed=True,
+            sat_score__isnull=False
+        )
+        sat_scores = [attempt.sat_score for attempt in attempts]
         avg_sat = sum(sat_scores) / len(sat_scores) if sat_scores else 0
         
         # Get homework completion rates
@@ -68,13 +73,24 @@ class ClassSerializer(serializers.ModelSerializer):
         ).count()
         
         completion_rate = (homework_submissions.count() / total_homework * 100) if total_homework > 0 else 0
+
+        # Get total study time
+        from apps.analytics.models import StudySession
+        total_minutes = StudySession.objects.filter(
+            student__in=students
+        ).aggregate(total=Sum('duration_minutes'))['total'] or 0
         
         return {
             'average_sat_score': round(avg_sat),
             'average_completion_rate': round(completion_rate, 1),
-            'total_study_time': 0,  # TODO: Implement study session tracking
+            'total_study_time': total_minutes,
             'active_students': students.count()
         }
+    
+    def get_announcements(self, obj):
+        """Get recent active announcements for the class."""
+        announcements = obj.announcements.filter(is_active=True)[:5]
+        return AnnouncementSerializer(announcements, many=True).data
     
     def validate_teacher_id(self, value):
         """Validate that teacher exists and has TEACHER role."""
@@ -162,3 +178,33 @@ class ClassLeaderboardSerializer(serializers.Serializer):
     leaderboard = ClassLeaderboardEntrySerializer(many=True)
     total_students = serializers.IntegerField()
     generated_at = serializers.DateTimeField()
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    """Serializer for Class Announcement model."""
+    teacher_name = serializers.CharField(source='teacher.get_full_name', read_only=True)
+    class_obj = serializers.PrimaryKeyRelatedField(read_only=True)
+    teacher = serializers.PrimaryKeyRelatedField(read_only=True)
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'class_obj', 'teacher', 'teacher_name',
+            'title', 'content', 'is_active', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class ClassResourceSerializer(serializers.ModelSerializer):
+    """Serializer for Class Resource model."""
+    teacher_name = serializers.CharField(source='teacher.get_full_name', read_only=True)
+    resource_type_display = serializers.CharField(source='get_resource_type_display', read_only=True)
+    
+    class Meta:
+        model = ClassResource
+        fields = [
+            'id', 'class_obj', 'teacher', 'teacher_name',
+            'title', 'description', 'resource_type', 'resource_type_display',
+            'file', 'url', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'teacher']

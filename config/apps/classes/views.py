@@ -8,14 +8,20 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from drf_spectacular.types import OpenApiTypes
 from django.utils import timezone
 from django.db.models import Q, Count, Avg, F, Sum
-from apps.classes.models import Class
+from django.contrib.contenttypes.models import ContentType
+from apps.classes.models import Class, Announcement
 from apps.classes.serializers import (
     ClassSerializer,
     ClassListSerializer,
     ClassEnrollmentSerializer,
     ClassLeaderboardSerializer,
-    ClassLeaderboardEntrySerializer
+    ClassLeaderboardEntrySerializer,
+    ClassLeaderboardSerializer,
+    ClassLeaderboardEntrySerializer,
+    AnnouncementSerializer,
+    ClassResourceSerializer
 )
+from apps.classes.models import ClassResource
 from apps.common.permissions import IsTeacherOrAdmin, IsClassTeacher, IsStudentInClass
 
 
@@ -61,8 +67,10 @@ class ClassViewSet(viewsets.ModelViewSet):
             return [IsTeacherOrAdmin()]
         elif self.action in ['enroll_students', 'remove_students']:
             return [IsClassTeacher()]
-        elif self.action in ['leaderboard']:
+        elif self.action in ['leaderboard', 'announcements']:
             return [IsStudentInClass() | IsClassTeacher()]
+        elif self.action in ['post_announcement']:
+            return [IsClassTeacher()]
         return [permissions.IsAuthenticated()]
     
     def perform_create(self, serializer):
@@ -289,3 +297,147 @@ class ClassViewSet(viewsets.ModelViewSet):
         
         serializer = ClassListSerializer(classes, many=True)
         return Response(serializer.data)
+
+    @extend_schema(
+        summary="Post class announcement",
+        description="Post a new announcement for the class. Only the class teacher can post announcements.",
+        tags=["Classes"],
+        request=AnnouncementSerializer,
+        responses={201: AnnouncementSerializer}
+    )
+    @action(detail=True, methods=['post'])
+    def post_announcement(self, request, pk=None):
+        """Post a new announcement for the class."""
+        class_obj = self.get_object()
+        serializer = AnnouncementSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        announcement = serializer.save(
+            class_obj=class_obj,
+            teacher=request.user
+        )
+        
+        # Trigger notifications for all students in the class
+        from apps.notifications.models import Notification
+        class_content_type = ContentType.objects.get_for_model(Class)
+        
+        notifications = [
+            Notification(
+                recipient=student,
+                actor=request.user,
+                verb=f"posted a new announcement in {class_obj.name}",
+                target_content_type=class_content_type,
+                target_object_id=class_obj.id
+            )
+            for student in class_obj.students.all()
+        ]
+        Notification.objects.bulk_create(notifications)
+        
+        return Response(
+            AnnouncementSerializer(announcement).data,
+            status=status.HTTP_201_CREATED
+        )
+
+    @extend_schema(
+        summary="Get class announcements",
+        description="Get all active announcements for the class.",
+        tags=["Classes"],
+        responses={200: AnnouncementSerializer(many=True)}
+    )
+    @action(detail=True, methods=['get'])
+    def announcements(self, request, pk=None):
+        """Get all active announcements for the class."""
+        class_obj = self.get_object()
+        announcements = class_obj.announcements.filter(is_active=True)
+        serializer = AnnouncementSerializer(announcements, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Get class gradebook",
+        description="Get detailed gradebook for the class including all students and assignments.",
+        tags=["Classes"]
+    )
+    @action(detail=True, methods=['get'])
+    def gradebook(self, request, pk=None):
+        """Get detailed gradebook for the class."""
+        class_obj = self.get_object()
+        
+        # Verify permissions - only teacher or admin
+        if not (request.user.is_admin or request.user == class_obj.teacher):
+            return Response(
+                {"detail": "You do not have permission to view the gradebook."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        students = class_obj.students.all().order_by('last_name', 'first_name')
+        assignments = class_obj.homework_assignments.filter(is_published=True).order_by('due_date')
+        
+        # Build structure: 
+        # { 
+        #   students: [{id, name, email}], 
+        #   assignments: [{id, title, max_score, due_date}],
+        #   grades: { student_id: { assignment_id: { score, submitted_at, is_late } } }
+        # }
+        
+        grade_data = {}
+        
+        from apps.homework.models import HomeworkSubmission
+        submissions = HomeworkSubmission.objects.filter(
+            homework__class_obj=class_obj
+        ).select_related('student', 'homework')
+        
+        for sub in submissions:
+            if sub.student.id not in grade_data:
+                grade_data[sub.student.id] = {}
+            
+            grade_data[sub.student.id][sub.homework.id] = {
+                'score': sub.score,
+                'submitted_at': sub.submitted_at,
+                'is_late': sub.is_late,
+                'status': 'SUBMITTED' if sub.submitted_at else 'PENDING'
+            }
+            
+        response_data = {
+            'students': [{
+                'id': s.id, 
+                'name': s.get_full_name(), 
+                'email': s.email
+            } for s in students],
+            'assignments': [{
+                'id': a.id, 
+                'title': a.title, 
+                'max_score': a.max_score,
+                'due_date': a.due_date
+            } for a in assignments],
+            'grades': grade_data
+        }
+        
+        return Response(response_data)
+
+
+class ClassResourceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Class Resources.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ClassResourceSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_admin:
+            return ClassResource.objects.all()
+        elif user.is_teacher:
+            # Teachers see resources for classes they teach
+            return ClassResource.objects.filter(class_obj__teacher=user)
+        elif user.is_student:
+             # Students see resources for classes they are enrolled in
+            return ClassResource.objects.filter(class_obj__students=user)
+        return ClassResource.objects.none()
+
+    def perform_create(self, serializer):
+        # Ensure only teacher of the class can add resources
+        class_obj = serializer.validated_data['class_obj']
+        if not self.request.user == class_obj.teacher and not self.request.user.is_admin:
+             raise permissions.PermissionDenied("Only the class teacher can add resources.")
+        serializer.save(teacher=self.request.user)
+

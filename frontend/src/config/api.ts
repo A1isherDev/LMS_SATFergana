@@ -49,6 +49,20 @@ export const API_ENDPOINTS = {
     START: (id: string) => `/mock-exams/${id}/start/`,
     SUBMIT: (id: string) => `/mock-exams/${id}/submit/`,
   },
+
+  // Digital SAT / Bluebook
+  BLUEBOOK: {
+    EXAMS: '/bluebook/exams/',
+    ATTEMPTS: '/bluebook/attempts/',
+    ANALYTICS: '/bluebook/analytics/',
+    START_EXAM: (id: string) => `/bluebook/exams/${id}/start_attempt/`,
+    START_ATTEMPT: (id: string) => `/bluebook/attempts/${id}/start/`,
+    GET_STATUS: (id: string) => `/bluebook/attempts/${id}/`,
+    GET_CURRENT_MODULE: (id: string) => `/bluebook/attempts/${id}/current_module/`,
+    SUBMIT_MODULE: (id: string) => `/bluebook/attempts/${id}/submit_module/`,
+    FLAG_QUESTION: (id: string) => `/bluebook/attempts/${id}/flag_question/`,
+    GET_RESULTS: (id: string) => `/bluebook/attempts/${id}/results/`,
+  },
   
   // Flashcards
   FLASHCARDS: {

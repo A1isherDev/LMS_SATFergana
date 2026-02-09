@@ -3,7 +3,7 @@ Common utility functions for the SAT LMS platform.
 Includes SAT score conversion and spaced repetition algorithm.
 """
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 from django.utils import timezone
 
 
@@ -241,7 +241,7 @@ def calculate_spaced_repetition(
     return (new_ease_factor, new_interval_days, next_review_date)
 
 
-def get_initial_spaced_repetition_values() -> Dict[str, any]:
+def get_initial_spaced_repetition_values() -> Dict[str, Any]:
     """
     Get initial values for spaced repetition algorithm.
     

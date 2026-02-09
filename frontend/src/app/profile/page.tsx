@@ -128,7 +128,7 @@ export default function ProfilePage() {
       if (user) {
         try {
           const updatedUser = await usersApi.getProfile();
-          updateUser(updatedUser);
+          updateUser(updatedUser as any);
         } catch (err) {
           updateUser({
             ...user,

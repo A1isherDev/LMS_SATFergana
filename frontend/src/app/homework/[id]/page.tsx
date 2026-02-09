@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
-import { 
+import {
   ArrowLeft,
   Clock,
   Calendar,
@@ -16,14 +16,13 @@ import {
   TrendingUp,
   Edit,
   Trash2,
-  Play,
-  Pause,
-  RotateCcw,
   Download,
-  Eye
+  Eye,
+  Check
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDate, formatDateTime, getDifficultyColor } from '@/utils/helpers';
+import GradingModal from '@/components/GradingModal';
 
 interface Question {
   id: number;
@@ -87,14 +86,15 @@ export default function HomeworkDetailPage() {
   const router = useRouter();
   const params = useParams();
   const homeworkId = params?.id as string;
-  
+
   const [homework, setHomework] = useState<HomeworkDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'questions' | 'submissions' | 'analytics'>('overview');
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [startTime] = useState(Date.now());
+  const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
+  const [showGradingModal, setShowGradingModal] = useState(false);
 
   useEffect(() => {
     const fetchHomeworkDetail = async () => {
@@ -105,7 +105,7 @@ export default function HomeworkDetailPage() {
             'Content-Type': 'application/json',
           },
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setHomework(data);
@@ -264,7 +264,7 @@ export default function HomeworkDetailPage() {
     setIsSubmitting(true);
     try {
       const timeSpent = Math.round((Date.now() - startTime) / 1000);
-      
+
       const response = await fetch(`/api/homework/${homeworkId}/submit/`, {
         method: 'POST',
         headers: {
@@ -301,6 +301,21 @@ export default function HomeworkDetailPage() {
       alert('Error submitting homework. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGradeSubmission = (submission: StudentSubmission) => {
+    setSelectedSubmission(submission);
+    setShowGradingModal(true);
+  };
+
+  const handleGradeSave = (score: number, feedback: string) => {
+    if (homework && selectedSubmission) {
+      const updatedSubmissions = homework.submissions.map(s =>
+        s.id === selectedSubmission.id ? { ...s, score, feedback } : s
+      );
+      setHomework({ ...homework, submissions: updatedSubmissions });
+      alert('Grade saved successfully!');
     }
   };
 
@@ -411,7 +426,7 @@ export default function HomeworkDetailPage() {
                   <p className="font-medium">{homework.class_obj.name}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center">
                 <Calendar className="h-5 w-5 text-green-600 mr-3" />
                 <div>
@@ -419,7 +434,7 @@ export default function HomeworkDetailPage() {
                   <p className="font-medium">{formatDateTime(homework.due_date)}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center">
                 <FileText className="h-5 w-5 text-purple-600 mr-3" />
                 <div>
@@ -427,7 +442,7 @@ export default function HomeworkDetailPage() {
                   <p className="font-medium">{homework.total_questions}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center">
                 <Users className="h-5 w-5 text-orange-600 mr-3" />
                 <div>
@@ -468,8 +483,8 @@ export default function HomeworkDetailPage() {
                       <span className="text-sm text-gray-500">{Math.round(calculateProgress())}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${calculateProgress()}%` }}
                       ></div>
                     </div>
@@ -485,9 +500,9 @@ export default function HomeworkDetailPage() {
                           </h3>
                           <span className="text-sm text-gray-500">{question.points} points</span>
                         </div>
-                        
+
                         <p className="text-gray-700 mb-4">{question.question_text}</p>
-                        
+
                         {question.question_type === 'MULTIPLE_CHOICE' && (
                           <div className="space-y-2">
                             {question.options?.map((option, optIndex) => (
@@ -506,7 +521,7 @@ export default function HomeworkDetailPage() {
                             ))}
                           </div>
                         )}
-                        
+
                         {question.question_type === 'TRUE_FALSE' && (
                           <div className="space-y-2">
                             {['True', 'False'].map((option) => (
@@ -525,7 +540,7 @@ export default function HomeworkDetailPage() {
                             ))}
                           </div>
                         )}
-                        
+
                         {question.question_type === 'TEXT' && (
                           <textarea
                             value={userAnswers[question.id.toString()] || ''}
@@ -538,7 +553,7 @@ export default function HomeworkDetailPage() {
                         )}
                       </div>
                     ))}
-                    
+
                     {/* Submit Button */}
                     {canSubmit && (
                       <div className="flex justify-end">
@@ -551,7 +566,7 @@ export default function HomeworkDetailPage() {
                         </button>
                       </div>
                     )}
-                    
+
                     {isOverdue && !isSubmitted && (
                       <div className="text-center py-4">
                         <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-2" />
@@ -577,11 +592,10 @@ export default function HomeworkDetailPage() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id as any)}
-                      className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === tab.id
+                      className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
                           ? 'border-blue-500 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
+                        }`}
                     >
                       <tab.icon className="h-4 w-4 mr-2" />
                       {tab.label}
@@ -643,6 +657,7 @@ export default function HomeworkDetailPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -680,6 +695,15 @@ export default function HomeworkDetailPage() {
                                   </span>
                                 )}
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <button
+                                  onClick={() => handleGradeSubmission(submission)}
+                                  className="text-blue-600 hover:text-blue-900 font-medium text-sm flex items-center"
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Grade
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -692,7 +716,7 @@ export default function HomeworkDetailPage() {
                 {activeTab === 'analytics' && (
                   <div className="space-y-6">
                     <h3 className="text-lg font-semibold text-gray-900">Performance Analytics</h3>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-gray-50 rounded-lg p-6">
                         <h4 className="font-medium text-gray-900 mb-4">Score Distribution</h4>
@@ -734,6 +758,15 @@ export default function HomeworkDetailPage() {
             </div>
           )}
         </div>
+
+        {showGradingModal && selectedSubmission && homework && (
+          <GradingModal
+            submission={selectedSubmission}
+            questions={homework.questions}
+            onClose={() => setShowGradingModal(false)}
+            onSave={handleGradeSave}
+          />
+        )}
       </DashboardLayout>
     </AuthGuard>
   );

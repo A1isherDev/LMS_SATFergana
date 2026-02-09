@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/', include('apps.flashcards.urls')),
     path('api/', include('apps.rankings.urls')),
     path('api/', include('apps.analytics.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
     
     # JWT token endpoints
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
