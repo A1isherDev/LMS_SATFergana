@@ -1108,9 +1108,15 @@ def get_teacher_dashboard_stats(teacher):
     
     # Classes taught
     classes_count = teacher.teaching_classes.count()
+<<<<<<< HEAD
     total_students = teacher.teaching_classes.aggregate(
         total=Count('students', distinct=True)
     )['total'] or 0
+=======
+    total_students = sum(
+        c.students.count() for c in teacher.teaching_classes.all()
+    )
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
     
     # Homework assigned
     homework_assigned = Homework.objects.filter(assigned_by=teacher).count()

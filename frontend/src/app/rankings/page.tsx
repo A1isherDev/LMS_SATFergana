@@ -25,7 +25,10 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDate } from '@/utils/helpers';
 import { rankingsApi } from '@/utils/api';
+<<<<<<< HEAD
 import toast from 'react-hot-toast';
+=======
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
 
 interface LeaderboardEntry {
   student: {
@@ -91,6 +94,7 @@ export default function RankingsPage() {
     }
   ];
 
+<<<<<<< HEAD
   const fetchRankings = async () => {
     setIsLoading(true);
     try {
@@ -103,11 +107,18 @@ export default function RankingsPage() {
       const data: any = leaderboardResponse;
 
       if (data) {
+=======
+  useEffect(() => {
+    const fetchRankings = async () => {
+      try {
+        const data = await rankingsApi.getLeaderboard({ period_type: selectedPeriod, limit: 50 }) as any;
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
         setPeriodInfo({
           start: data.period_start,
           end: data.period_end
         });
 
+<<<<<<< HEAD
         const transformedData = data.leaderboard?.map((entry: any) => ({
           student: {
             id: entry.student_id,
@@ -166,6 +177,37 @@ export default function RankingsPage() {
       } else {
         setLeaderboard([]);
         setAvailableClasses([]);
+=======
+        const transformedData = (data.leaderboard || []).map((entry: any) => ({
+            student: {
+              id: entry.student_id,
+              first_name: entry.student_name?.split(' ')[0] || 'Student',
+              last_name: entry.student_name?.split(' ').slice(1).join(' ') || '',
+              email: entry.student_email,
+              bio: entry.student_bio
+            },
+            points: entry.total_points,
+            rank: entry.rank,
+            period_type: selectedPeriod,
+            trend: entry.rank_change_display || 'stable',
+            previous_rank: entry.rank_change !== 0 ? entry.rank - entry.rank_change : undefined,
+            class_name: entry.class_name || 'General',
+            study_time_minutes: entry.study_time_minutes || 0,
+            homework_completion_rate: entry.homework_completion_rate || 0,
+            homework_accuracy: entry.homework_accuracy || 0,
+            mock_exam_count: entry.mock_exam_count || 0
+          }));
+
+        setLeaderboard(transformedData);
+        const uniqueClasses = [...new Set(transformedData.map((entry: LeaderboardEntry) => entry.class_name).filter(Boolean))] as string[];
+        setAvailableClasses(uniqueClasses);
+      } catch (error) {
+        console.error('Error fetching rankings:', error);
+        setLeaderboard([]);
+        setAvailableClasses([]);
+      } finally {
+        setIsLoading(false);
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
       }
     } catch (error) {
       console.error('Error fetching rankings:', error);

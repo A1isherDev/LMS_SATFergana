@@ -25,6 +25,9 @@ class HomeworkSerializer(serializers.ModelSerializer):
     submission_count = serializers.SerializerMethodField()
     average_score = serializers.SerializerMethodField()
     difficulty_level = serializers.CharField(read_only=True)
+    user_submission = serializers.SerializerMethodField()
+    homework_stats = serializers.SerializerMethodField()
+    submissions = serializers.SerializerMethodField()
     
     class Meta:
         model = Homework
@@ -34,7 +37,7 @@ class HomeworkSerializer(serializers.ModelSerializer):
             'questions', 'question_ids', 'max_score', 'is_published',
             'total_questions', 'is_overdue', 'days_until_due',
             'submission_count', 'average_score', 'difficulty_level',
-            'created_at', 'updated_at'
+            'user_submission', 'homework_stats', 'submissions', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
@@ -50,10 +53,73 @@ class HomeworkSerializer(serializers.ModelSerializer):
             return submitted.aggregate(avg_score=Avg('score'))['avg_score']
         return 0
     
+<<<<<<< HEAD
     def get_questions(self, obj):
         """Get questions with student view."""
         from apps.questionbank.serializers import QuestionStudentSerializer
         return QuestionStudentSerializer(obj.questions.all(), many=True).data
+=======
+    def get_user_submission(self, obj):
+        """Current user's submission for this homework (for students)."""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated or getattr(request.user, 'role', None) != 'STUDENT':
+            return None
+        try:
+            sub = obj.submissions.get(student=request.user)
+            return {
+                'id': sub.id,
+                'student': {'id': request.user.id, 'first_name': request.user.first_name, 'last_name': request.user.last_name, 'email': request.user.email},
+                'submitted_at': sub.submitted_at,
+                'score': sub.score,
+                'max_score': obj.max_score,
+                'is_late': sub.is_late,
+                'answers': sub.answers or {},
+                'time_spent_seconds': sub.time_spent_seconds or 0,
+            }
+        except HomeworkSubmission.DoesNotExist:
+            return None
+    
+    def get_homework_stats(self, obj):
+        """Stats for teacher view."""
+        from django.db.models import Avg
+        subs = obj.submissions.filter(submitted_at__isnull=False)
+        count = subs.count()
+        avg = subs.aggregate(a=Avg('score'))['a'] or 0
+        on_time = subs.filter(is_late=False).count()
+        return {
+            'submission_count': count,
+            'average_score': int(avg),
+            'average_time_spent': int(subs.aggregate(a=Avg('time_spent_seconds'))['a'] or 0),
+            'on_time_submission_rate': (on_time / count * 100) if count else 100,
+        }
+    
+    def get_submissions(self, obj):
+        """Submissions list for teacher/admin."""
+        request = self.context.get('request')
+        if not request or not (getattr(request.user, 'is_teacher', False) or getattr(request.user, 'is_admin', False)):
+            return []
+        subs = obj.submissions.select_related('student').all().order_by('-submitted_at')
+        return [
+            {
+                'id': s.id,
+                'student': {'id': s.student.id, 'first_name': s.student.first_name, 'last_name': s.student.last_name, 'email': s.student.email},
+                'submitted_at': s.submitted_at,
+                'score': s.score,
+                'max_score': obj.max_score,
+                'is_late': s.is_late,
+                'answers': s.answers or {},
+                'time_spent_seconds': s.time_spent_seconds or 0,
+            }
+            for s in subs
+        ]
+    
+    def to_representation(self, instance):
+        """Inject class_obj as { id, name } for frontend."""
+        data = super().to_representation(instance)
+        if instance.class_obj_id:
+            data['class_obj'] = {'id': instance.class_obj.id, 'name': instance.class_obj.name}
+        return data
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
     
     def validate_class_obj(self, value):
         """Validate that user is the teacher of the class."""

@@ -1,7 +1,7 @@
 """
 Views for the questionbank app.
 """
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
@@ -30,9 +30,9 @@ class QuestionViewSet(AuditLogMixin, viewsets.ModelViewSet):
     Different access levels for teachers/admins vs students.
     """
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['question_type', 'skill_tag', 'difficulty', 'is_active']
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = ['question_text', 'skill_tag']
+    filterset_fields = ['question_type', 'skill_tag', 'difficulty', 'is_active']
     
     @extend_schema(
         summary="List questions",
@@ -351,7 +351,21 @@ class QuestionAttemptViewSet(AuditLogMixin, viewsets.ModelViewSet):
         if self.action == 'create':
             return [IsStudent()]
         return [permissions.IsAuthenticated()]
-    
+
+    def create(self, request, *args, **kwargs):
+        """Create attempt and return result with explanation for practice feedback."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attempt = serializer.save()
+        question = attempt.question
+        response_data = {
+            **QuestionAttemptSerializer(attempt).data,
+            'is_correct': attempt.is_correct,
+            'correct_answer': question.correct_answer,
+            'explanation': question.explanation,
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
     @extend_schema(
         summary="Get my progress",
         description="Get current student's progress statistics across all question attempts.",

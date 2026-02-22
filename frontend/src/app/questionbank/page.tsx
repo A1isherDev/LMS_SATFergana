@@ -31,15 +31,15 @@ import { QuestionBankDashboard } from './components/QuestionBankDashboard';
 interface Question {
   id: number;
   question_text: string;
-  question_type: 'MULTIPLE_CHOICE' | 'TEXT' | 'MATH';
-  subject: 'MATH' | 'READING' | 'WRITING';
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
-  correct_answer: string;
-  explanation: string;
-  options?: string[];
+  question_type: 'MULTIPLE_CHOICE' | 'TEXT' | 'MATH' | 'READING' | 'WRITING' | 'GRID_RESPONSE';
+  subject?: 'MATH' | 'READING' | 'WRITING';
+  difficulty: number | 'EASY' | 'MEDIUM' | 'HARD';
+  correct_answer?: string;
+  explanation?: string;
+  options?: Record<string, string> | string[];
   tags: string[];
-  attempt_count: number;
-  accuracy_rate: number;
+  attempt_count?: number;
+  accuracy_rate?: number;
 }
 
 interface PracticeSession {
@@ -71,7 +71,15 @@ function QuestionBankContent() {
   );
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
+  const [attemptFeedback, setAttemptFeedback] = useState<{ is_correct: boolean; explanation: string; correct_answer: string } | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
 
+  const difficultyToNumber = (d: string) => ({ EASY: 1, MEDIUM: 3, HARD: 5 }[d] || undefined);
+
+<<<<<<< HEAD
   // Default to Dashboard view unless 'list' is specified or we have search params
   const [currentView, setCurrentView] = useState<'dashboard' | 'list'>(
     viewParam === 'list' || subjectParam || skillTagParam ? 'list' : 'dashboard'
@@ -99,15 +107,54 @@ function QuestionBankContent() {
       fetchQuestions();
     }
   }, [filterSubject, filterDifficulty, filterType, searchTerm, currentView]);
+=======
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        setIsLoading(true);
+        const response = await questionBankApi.getQuestions({
+          question_type: filterSubject !== 'all' ? filterSubject : (filterType !== 'all' ? filterType : undefined),
+          difficulty: filterDifficulty !== 'all' ? difficultyToNumber(filterDifficulty) : undefined,
+          search: searchTerm || undefined,
+          page,
+          page_size: 20
+        }) as { results?: Question[]; count?: number; next?: string; previous?: string } | Question[];
+        if (Array.isArray(response)) {
+          setQuestions(response);
+          setTotalCount(response.length);
+          setHasNext(false);
+          setHasPrev(false);
+        } else {
+          setQuestions(response.results || []);
+          setTotalCount(response.count ?? (response.results?.length ?? 0));
+          setHasNext(!!response.next);
+          setHasPrev(!!response.previous);
+        }
+      } catch (error) {
+        console.error('Error fetching questions:', error);
+        setQuestions([]);
+        setTotalCount(0);
+        setHasNext(false);
+        setHasPrev(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchQuestions();
+  }, [filterSubject, filterDifficulty, filterType, searchTerm, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filterSubject, filterDifficulty, filterType, searchTerm]);
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
 
   const filteredQuestions = questions.filter(q => {
-    const matchesSearch = (q.question_text?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (q.tags || []).some(tag => (tag?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
-
-    const matchesSubject = filterSubject === 'all' || q.subject === filterSubject;
-    const matchesDifficulty = filterDifficulty === 'all' || q.difficulty === filterDifficulty;
+    const matchesSearch = !searchTerm || (q.question_text?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (q.tags || []).some((tag: string) => (tag?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
+    const matchesSubject = filterSubject === 'all' || q.question_type === filterSubject;
+    const matchesDifficulty = filterDifficulty === 'all' || (q.difficulty === difficultyToNumber(filterDifficulty));
     const matchesType = filterType === 'all' || q.question_type === filterType;
-
     return matchesSearch && matchesSubject && matchesDifficulty && matchesType;
   });
 
@@ -170,6 +217,11 @@ function QuestionBankContent() {
   const nextQuestion = () => {
     const availableQuestions = filteredQuestions.length > 0 ? filteredQuestions : questions;
     const remainingQuestions = availableQuestions.filter(q => q.id !== currentQuestion?.id);
+<<<<<<< HEAD
+=======
+    setAttemptFeedback(null);
+
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
     if (remainingQuestions.length > 0) {
       const randomQuestion = remainingQuestions[Math.floor(Math.random() * remainingQuestions.length)];
       setCurrentQuestion(randomQuestion);
@@ -234,6 +286,7 @@ function QuestionBankContent() {
             </div>
 
             {/* Question Card */}
+<<<<<<< HEAD
             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-10">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
@@ -241,6 +294,16 @@ function QuestionBankContent() {
                     {currentQuestion.subject}
                   </span>
                   <span className={`px-3 py-1 text-[9px] font-black rounded-lg uppercase tracking-wider ${getDifficultyColor(currentQuestion.difficulty)}`}>
+=======
+            <div className="bg-white rounded-lg shadow p-8">
+              {/* Question Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubjectColor(currentQuestion.question_type)}`}>
+                    {currentQuestion.subject}
+                  </span>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(typeof currentQuestion.difficulty === 'number' ? ({ 1: 'EASY', 2: 'EASY', 3: 'MEDIUM', 4: 'HARD', 5: 'HARD' } as Record<number, string>)[currentQuestion.difficulty] || 'MEDIUM' : currentQuestion.difficulty)}`}>
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
                     {currentQuestion.difficulty}
                   </span>
                 </div>
@@ -257,6 +320,7 @@ function QuestionBankContent() {
                 </h2>
 
                 {/* Answer Options */}
+<<<<<<< HEAD
                 {currentQuestion.question_type === 'MULTIPLE_CHOICE' && currentQuestion.options && (
                   <div className="grid grid-cols-1 gap-4">
                     {currentQuestion.options.map((option, index) => (
@@ -288,6 +352,34 @@ function QuestionBankContent() {
                     ))}
                   </div>
                 )}
+=======
+                {currentQuestion.question_type === 'MULTIPLE_CHOICE' && currentQuestion.options && (() => {
+                  const raw = currentQuestion.options as Record<string, string> | string[];
+                  const entries: [string, string][] = Array.isArray(raw)
+                    ? raw.map((text, i) => [String.fromCharCode(65 + i), text])
+                    : Object.entries(raw);
+                  const correctKey = (attemptFeedback?.correct_answer ?? '').toUpperCase();
+                  return (
+                    <div className="space-y-3">
+                      {entries.map(([letter, text]) => {
+                        const isCorrectOption = showExplanation && letter === correctKey;
+                        const isWrongSelected = showExplanation && selectedAnswer === letter && letter !== correctKey;
+                        return (
+                          <label
+                            key={letter}
+                            className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${selectedAnswer === letter ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'} ${isCorrectOption ? 'border-green-500 bg-green-50' : ''} ${isWrongSelected ? 'border-red-500 bg-red-50' : ''}`}
+                          >
+                            <input type="radio" name="answer" value={letter} checked={selectedAnswer === letter} onChange={(e) => setSelectedAnswer(e.target.value)} disabled={showExplanation} className="mr-3" />
+                            <span className="flex-1">{text}</span>
+                            {isCorrectOption && <CheckCircle className="h-5 w-5 text-green-500" />}
+                            {isWrongSelected && <XCircle className="h-5 w-5 text-red-500" />}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
 
                 {currentQuestion.question_type === 'TEXT' && (
                   <textarea
@@ -301,6 +393,7 @@ function QuestionBankContent() {
                 )}
               </div>
 
+<<<<<<< HEAD
               {/* Explanation */}
               {showExplanation && (
                 <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-[1.5rem] p-8 mb-10">
@@ -309,6 +402,13 @@ function QuestionBankContent() {
                     Protocol Breakdown
                   </div>
                   <p className="text-slate-600 dark:text-slate-300 font-medium leading-relaxed italic">{currentQuestion.explanation}</p>
+=======
+              {/* Explanation from backend after submit */}
+              {showExplanation && attemptFeedback && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                  <h3 className="font-semibold text-blue-900 mb-2">Explanation</h3>
+                  <p className="text-blue-800">{attemptFeedback.explanation || 'No explanation available.'}</p>
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
                 </div>
               )}
 
@@ -372,6 +472,7 @@ function QuestionBankContent() {
                 }
               </p>
             </div>
+<<<<<<< HEAD
             <div className="flex items-center gap-4">
               {['TEACHER', 'ADMIN'].includes(user?.role || '') && (
                 <button
@@ -391,6 +492,53 @@ function QuestionBankContent() {
                   Start Practice
                 </button>
               )}
+=======
+          )}
+
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Questions</p>
+                  <p className="text-2xl font-bold text-gray-900">{questions.length}</p>
+                </div>
+                <BookOpen className="h-8 w-8 text-blue-600" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Math</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {questions.filter(q => q.question_type === 'MATH').length}
+                  </p>
+                </div>
+                <BarChart3 className="h-8 w-8 text-green-600" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Reading</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {questions.filter(q => q.question_type === 'READING').length}
+                  </p>
+                </div>
+                <Brain className="h-8 w-8 text-purple-600" />
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Writing</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {questions.filter(q => q.question_type === 'WRITING').length}
+                  </p>
+                </div>
+                <RefreshCw className="h-8 w-8 text-orange-600" />
+              </div>
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
             </div>
           </div>
 
@@ -445,6 +593,7 @@ function QuestionBankContent() {
                 </div>
               </div>
 
+<<<<<<< HEAD
               {isLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {[...Array(6)].map((_, i) => (
@@ -469,11 +618,36 @@ function QuestionBankContent() {
                             </div>
                             <div className="text-[10px] font-black text-slate-300 uppercase italic">#{question.id}</div>
                           </div>
+=======
+          {/* Questions Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredQuestions.map((question) => (
+              <div key={question.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  {/* Question Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubjectColor(question.question_type)}`}>
+                        {question.question_type}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(typeof question.difficulty === 'number' ? ({ 1: 'EASY', 2: 'EASY', 3: 'MEDIUM', 4: 'HARD', 5: 'HARD' } as Record<number, string>)[question.difficulty] || 'MEDIUM' : question.difficulty)}`}>
+                        {typeof question.difficulty === 'number' ? ({ 1: 'EASY', 2: 'EASY', 3: 'MEDIUM', 4: 'HARD', 5: 'HARD' } as Record<number, string>)[question.difficulty] || question.difficulty : question.difficulty}
+                      </span>
+                    </div>
+                    {question.accuracy_rate != null && (
+                      <div className="flex items-center space-x-1 text-xs text-gray-500">
+                        <Brain className="h-3 w-3" />
+                        <span>{question.accuracy_rate}%</span>
+                      </div>
+                    )}
+                  </div>
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
 
                           <h3 className="text-md font-bold text-slate-700 dark:text-slate-200 line-clamp-3 mb-6 leading-relaxed group-hover:text-blue-600 transition-colors">
                             {question.question_text}
                           </h3>
 
+<<<<<<< HEAD
                           <div className="flex flex-wrap gap-2 mb-8">
                             {question.tags?.map((tag, index) => (
                               <span
@@ -525,6 +699,79 @@ function QuestionBankContent() {
                 </>
               )}
             </>
+=======
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {(question.tags || []).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    {question.attempt_count != null && <span>{question.attempt_count} attempts</span>}
+                    <span>{question.question_type?.replace('_', ' ') || ''}</span>
+                  </div>
+
+                  {/* Actions */}
+                  <button
+                    onClick={() => {
+                      setCurrentQuestion(question);
+                      setIsPracticeMode(true);
+                      setSelectedAnswer('');
+                      setShowExplanation(false);
+                    }}
+                    className="w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Practice Question
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {(hasNext || hasPrev) && (
+            <div className="flex items-center justify-between border-t border-gray-200 pt-4 mt-6">
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={!hasPrev}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-600">Page {page} {totalCount > 0 && `• ${totalCount} total`}</span>
+              <button
+                type="button"
+                onClick={() => setPage(p => p + 1)}
+                disabled={!hasNext}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {filteredQuestions.length === 0 && !isLoading && (
+            <div className="text-center py-12">
+              <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <Brain className="h-6 w-6 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No questions found</h3>
+              <p className="text-gray-500">
+                {searchTerm || filterSubject !== 'all' || filterDifficulty !== 'all' || filterType !== 'all'
+                  ? 'Try adjusting your filters'
+                  : 'Start practicing to see questions here'}
+              </p>
+            </div>
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
           )}
 
         </div>

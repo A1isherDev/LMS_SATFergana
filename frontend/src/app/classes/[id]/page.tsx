@@ -124,6 +124,7 @@ export default function ClassDetailPage() {
   };
 
   const handleRemoveStudent = async (studentId: number) => {
+<<<<<<< HEAD
     if (!window.confirm('Are you sure you want to remove this student from the class?')) {
       return;
     }
@@ -139,6 +140,20 @@ export default function ClassDetailPage() {
     } catch (error) {
       console.error('Error removing student:', error);
       toast.error('Error removing student. Please try again.', { id: toastId });
+=======
+    if (!confirm('Are you sure you want to remove this student from the class?')) return;
+    try {
+      await classesApi.removeStudents(parseInt(classId), [studentId]);
+      if (classDetail) {
+        setClassDetail({
+          ...classDetail,
+          students: classDetail.students.filter(s => s.id !== studentId)
+        });
+      }
+    } catch (error) {
+      console.error('Error removing student:', error);
+      alert('Failed to remove student. Please try again.');
+>>>>>>> bb6d2861f150c00700c6a138ec5028042b66f56c
     }
   };
 

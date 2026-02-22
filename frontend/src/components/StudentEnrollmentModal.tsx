@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Search, UserPlus } from 'lucide-react';
+import { adminApi } from '@/utils/api';
 
 interface Student {
     id: number;
@@ -28,41 +29,20 @@ export default function StudentEnrollmentModal({
     const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Fetch available students (not already in class)
-    useState(() => {
+    useEffect(() => {
         const fetchStudents = async () => {
             try {
-                const response = await fetch('/api/users/?role=STUDENT', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                    },
-                });
-
-                if (response.ok) {
-                    const allStudents = await response.json();
-                    const currentStudentIds = currentStudents.map(s => s.id);
-                    const available = allStudents.filter((s: Student) => !currentStudentIds.includes(s.id));
-                    setAvailableStudents(available);
-                } else {
-                    // Mock data for development
-                    setAvailableStudents([
-                        { id: 10, first_name: 'Emma', last_name: 'Davis', email: 'emma@example.com' },
-                        { id: 11, first_name: 'Michael', last_name: 'Brown', email: 'michael@example.com' },
-                        { id: 12, first_name: 'Sophia', last_name: 'Wilson', email: 'sophia@example.com' },
-                    ]);
-                }
+                const data = await adminApi.getUsers({ role: 'STUDENT' }) as { results?: Student[] } | Student[];
+                const list = Array.isArray(data) ? data : (data?.results ?? []);
+                const currentIds = currentStudents.map(s => s.id);
+                setAvailableStudents(list.filter((s: Student) => !currentIds.includes(s.id)));
             } catch (error) {
                 console.error('Error fetching students:', error);
-                setAvailableStudents([
-                    { id: 10, first_name: 'Emma', last_name: 'Davis', email: 'emma@example.com' },
-                    { id: 11, first_name: 'Michael', last_name: 'Brown', email: 'michael@example.com' },
-                    { id: 12, first_name: 'Sophia', last_name: 'Wilson', email: 'sophia@example.com' },
-                ]);
+                setAvailableStudents([]);
             }
         };
-
         fetchStudents();
-    });
+    }, [classId, currentStudents]);
 
     const filteredStudents = availableStudents.filter(student =>
         `${student.first_name} ${student.last_name} ${student.email}`
@@ -83,28 +63,15 @@ export default function StudentEnrollmentModal({
             alert('Please select at least one student');
             return;
         }
-
         setIsLoading(true);
         try {
-            const response = await fetch(`/api/classes/${classId}/enroll_students/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ student_ids: selectedStudents }),
-            });
-
-            if (response.ok) {
-                onEnroll(selectedStudents);
-                onClose();
-            } else {
-                const error = await response.json();
-                alert(`Error: ${error.detail || 'Failed to enroll students'}`);
-            }
-        } catch (error) {
-            console.error('Error enrolling students:', error);
-            alert('Error enrolling students. Please try again.');
+            const { classesApi } = await import('@/utils/api');
+            await classesApi.enrollStudents(classId, selectedStudents);
+            onEnroll(selectedStudents);
+            onClose();
+        } catch (error: any) {
+            const msg = error?.response?.data?.detail || error?.message || 'Failed to enroll students';
+            alert(typeof msg === 'string' ? msg : 'Failed to enroll students');
         } finally {
             setIsLoading(false);
         }

@@ -264,6 +264,14 @@ export const classesApi = {
     return apiClient.get(`/classes/${id}/leaderboard/?period=${period}`);
   },
 
+  enrollStudents: async (classId: number, studentIds: number[]) => {
+    return apiClient.post(`/classes/${classId}/enroll_students/`, { student_ids: studentIds });
+  },
+
+  removeStudents: async (classId: number, studentIds: number[]) => {
+    return apiClient.post(`/classes/${classId}/remove_students/`, { student_ids: studentIds });
+  },
+
   postAnnouncement: async (id: number, data: { title: string, content: string }) => {
     return apiClient.post(`/classes/${id}/post_announcement/`, data);
   },
@@ -374,11 +382,13 @@ export const homeworkApi = {
 export const questionBankApi = {
   getQuestions: async (params?: {
     subject?: string;
-    difficulty?: string;
+    difficulty?: number | string;
     question_type?: string;
     search?: string;
     limit?: number;
     offset?: number;
+    page?: number;
+    page_size?: number;
   }) => {
     return apiClient.get('/questionbank/questions/', { params });
   },
@@ -441,6 +451,14 @@ export const bluebookApi = {
 
   getExamStructure: async (id: number) => {
     return apiClient.get(`/bluebook/exams/${id}/structure/`);
+  },
+
+  createExam: async (data: { title: string; description?: string }) => {
+    return apiClient.post('/bluebook/exams/', data);
+  },
+
+  populateQuestions: async (examId: number) => {
+    return apiClient.post(`/bluebook/exams/${examId}/populate_questions/`);
   },
 
   startExam: async (id: number) => {

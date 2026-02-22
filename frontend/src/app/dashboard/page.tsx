@@ -6,8 +6,6 @@ import AuthGuard from '../../components/AuthGuard';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { usersApi, analyticsApi, bluebookApi } from '../../utils/api';
-import { getDaysUntilExam, formatDuration } from '../../utils/helpers';
-import { getFutureDate, getPastDate } from '../../utils/dateFixer';
 import {
   BookOpen,
   Target,
@@ -17,7 +15,6 @@ import {
 
 import StudentDashboard from '../../components/dashboards/StudentDashboard';
 import TeacherDashboard from '../../components/dashboards/TeacherDashboard';
-import AdminDashboard from '../../components/dashboards/AdminDashboard';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -26,24 +23,31 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [studentProfile, setStudentProfile] = useState<Record<string, unknown> | null>(null);
 
+  // Admin must use Admin Panel only — redirect to /admin
   useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      router.replace('/admin');
+      return;
+    }
+  }, [user?.role, router]);
+
+  useEffect(() => {
+    if (user?.role === 'ADMIN') return;
+
     const fetchData = async () => {
       try {
-        // Fetch student profile if user is a student
-        if (user?.role === 'STUDENT' && stats) {
+        if (user?.role === 'STUDENT') {
           try {
             const profileData = await usersApi.getStudentProfile() as Record<string, unknown>;
             setStudentProfile(profileData);
-          } catch (profileError) {
-            console.log('Student profile fetch error:', profileError);
+          } catch {
+            // optional
           }
         }
 
-        // Fetch dashboard stats (backend returns role-specific data)
         const data = await analyticsApi.getDashboardStats() as Record<string, unknown>;
 
         if (user?.role === 'STUDENT') {
-          // Additional student-only data (Digital SAT)
           let digitalSatData = { attempts: 0, averageScore: 0, bestScore: 0 };
           try {
             const satAnalytics = await bluebookApi.getAnalytics() as Record<string, unknown>;
@@ -52,33 +56,29 @@ export default function DashboardPage() {
               averageScore: (satAnalytics.average_total_score as number) || 0,
               bestScore: (satAnalytics.highest_score as number) || 0
             };
-          } catch (satError) {
-            console.log('Digital SAT analytics fetch error:', satError);
+          } catch {
+            // optional
           }
-
           setStats({
             ...data,
             digitalSatAttempts: digitalSatData.attempts,
             digitalSatAverageScore: digitalSatData.averageScore,
             digitalSatBestScore: digitalSatData.bestScore,
-            nextExamDate: data.nextExamDate || studentProfile?.sat_exam_date || getFutureDate(120),
-            weakAreas: data.weakAreas || (studentProfile?.weak_areas ? Object.keys(studentProfile.weak_areas as object) : ['Algebra', 'Geometry']),
+            nextExamDate: data.nextExamDate ?? (studentProfile as any)?.sat_exam_date ?? null,
+            weakAreas: Array.isArray(data.weakAreas) ? data.weakAreas : [],
           });
         } else {
           setStats(data);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        // Fallback for demo/safety
         setStats(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (user) {
-      fetchData();
-    }
+    if (user) fetchData();
   }, [user, studentProfile?.sat_exam_date]);
 
   const handleSessionUpdate = () => {
@@ -98,16 +98,16 @@ export default function DashboardPage() {
     }
   };
 
-  if (isLoading) {
+  if (user?.role === 'ADMIN' || isLoading) {
     return (
       <AuthGuard>
         <DashboardLayout>
           <div className="animate-pulse flex space-x-4">
             <div className="flex-1 space-y-4 py-1">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
               <div className="space-y-2">
-                <div className="h-4 bg-gray-200 rounded"></div>
-                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                <div className="h-4 bg-gray-200 rounded" />
+                <div className="h-4 bg-gray-200 rounded w-5/6" />
               </div>
             </div>
           </div>
@@ -133,11 +133,7 @@ export default function DashboardPage() {
           <TeacherDashboard stats={stats as any} />
         )}
 
-        {user?.role === 'ADMIN' && stats && (
-          <AdminDashboard stats={stats as any} />
-        )}
-
-        {!stats && (
+        {!stats && user?.role !== 'ADMIN' && (
           <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
             <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome, {user?.first_name || 'User'}!</h2>
             <p className="text-gray-500 mb-6">We couldn't load your personalized dashboard stats right now.</p>

@@ -24,17 +24,21 @@ interface Question {
     id: number;
     question_text: string;
     question_type: string;
-    options: string[];
-    points: number;
+    options: Record<string, string> | string[];
+    points?: number;
 }
 
 interface ModuleData {
     id: number;
-    title: string;
-    order: number;
-    section: string;
+    title?: string;
+    module_order: number;
+    section_type?: string;
+    order?: number;
+    section?: string;
     questions: Question[];
-    duration_minutes: number;
+    time_limit_minutes?: number;
+    duration_minutes?: number;
+    time_remaining_seconds?: number;
 }
 
 interface AttemptStatus {
@@ -91,25 +95,25 @@ const DigitalSATTestPage: React.FC = () => {
 
     const setupAttempt = (data: any) => {
         setAttempt(data);
-        setAnswers(data.answers || {});
-        setFlaggedQuestions(data.flagged_questions || []);
+        setAnswers(data.answers || data.module_answers?.[String(data.current_module?.id)] || {});
+        setFlaggedQuestions(Array.isArray(data.flagged_questions) ? data.flagged_questions : []);
 
-        // For adaptive test, we might need to fetch the current module if it's not in the attempt object
         if (!data.current_module && data.status === 'STARTED') {
             fetchCurrentModule();
         } else if (data.status === 'BREAK') {
             setIsBreakTime(true);
-            setRemainingTime(600); // 10 minute break
+            setRemainingTime(600);
         } else {
-            setRemainingTime(data.remaining_seconds || 0);
+            setRemainingTime(data.remaining_seconds ?? data.current_module_time_remaining ?? 0);
         }
     };
 
     const fetchCurrentModule = async () => {
         try {
-            const moduleData = await bluebookApi.getCurrentModule(attemptId) as ModuleData;
+            const moduleData = await bluebookApi.getCurrentModule(attemptId) as any;
             setAttempt(prev => prev ? { ...prev, current_module: moduleData } : null);
-            setRemainingTime(moduleData.duration_minutes * 60);
+            const remaining = moduleData.time_remaining_seconds ?? (moduleData.time_limit_minutes ?? 32) * 60;
+            setRemainingTime(remaining);
         } catch (error) {
             console.error('Error fetching module:', error);
         }
@@ -193,15 +197,22 @@ const DigitalSATTestPage: React.FC = () => {
 
             if (response.status === 'BREAK') {
                 setIsBreakTime(true);
-                setRemainingTime(600); // 10 minute break
+                setRemainingTime(600);
                 setAttempt(prev => prev ? { ...prev, status: 'BREAK', current_module: null } : null);
                 toast.success('Module submitted! Take a 10-minute break.');
             } else if (response.status === 'COMPLETED') {
                 router.push(`/mockexams/bluebook/results/${attemptId}`);
             } else if (response.status === 'STARTED') {
-                // Next module started
-                await fetchCurrentModule();
+                setAttempt(response);
+                setAnswers(response.answers || {});
+                setFlaggedQuestions(Array.isArray(response.flagged_questions) ? response.flagged_questions : []);
+                setRemainingTime(response.remaining_seconds ?? 0);
                 setCurrentQuestionIndex(0);
+                if (response.current_module) {
+                    setAttempt(prev => prev ? { ...prev, current_module: response.current_module } : response);
+                } else {
+                    await fetchCurrentModule();
+                }
                 toast.success('Moving to next module');
             }
         } catch (error) {
@@ -292,8 +303,8 @@ const DigitalSATTestPage: React.FC = () => {
                         </div>
                         <div className="h-6 w-px bg-gray-200 hidden sm:block" />
                         <div className="hidden sm:block">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Section {currentModule?.order}</p>
-                            <p className="text-sm font-black text-slate-900 uppercase tracking-tight leading-none">{currentModule?.section}</p>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Section {(currentModule as any)?.module_order ?? (currentModule as any)?.order ?? 1}</p>
+                            <p className="text-sm font-black text-slate-900 uppercase tracking-tight leading-none">{(currentModule as any)?.section_type ?? (currentModule as any)?.section ?? 'Section'}</p>
                         </div>
                     </div>
 
@@ -356,32 +367,40 @@ const DigitalSATTestPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Options */}
+                                    {/* Options - support options as object {A,B,C,D} or array */}
                                     <div className="space-y-4">
-                                        {currentQuestion.options?.map((option, idx) => {
-                                            const label = String.fromCharCode(65 + idx);
-                                            const isSelected = answers[currentQuestion.id.toString()] === option;
+                                        {(() => {
+                                            const opts = currentQuestion.options;
+                                            const optionsArray: string[] = Array.isArray(opts)
+                                                ? opts
+                                                : opts && typeof opts === 'object'
+                                                    ? (['A', 'B', 'C', 'D'].map((k) => (opts as Record<string, string>)[k]).filter(Boolean))
+                                                    : [];
+                                            return optionsArray.map((option, idx) => {
+                                                const label = String.fromCharCode(65 + idx);
+                                                const isSelected = answers[currentQuestion.id.toString()] === option || answers[currentQuestion.id.toString()] === label;
 
-                                            return (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => handleAnswerSelect(currentQuestion.id, option)}
-                                                    className={`w-full group text-left p-5 rounded-2xl border-2 transition-all flex items-start space-x-4 ${isSelected
-                                                            ? 'bg-blue-50 border-blue-600 ring-4 ring-blue-600/10'
-                                                            : 'bg-white border-slate-100 hover:border-slate-300'
-                                                        }`}
-                                                >
-                                                    <span className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-                                                        }`}>
-                                                        {label}
-                                                    </span>
-                                                    <span className={`text-base font-bold transition-colors ${isSelected ? 'text-blue-900' : 'text-slate-600'
-                                                        }`}>
-                                                        {option}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => handleAnswerSelect(currentQuestion.id, option)}
+                                                        className={`w-full group text-left p-5 rounded-2xl border-2 transition-all flex items-start space-x-4 ${isSelected
+                                                                ? 'bg-blue-50 border-blue-600 ring-4 ring-blue-600/10'
+                                                                : 'bg-white border-slate-100 hover:border-slate-300'
+                                                            }`}
+                                                    >
+                                                        <span className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                                                            }`}>
+                                                            {label}
+                                                        </span>
+                                                        <span className={`text-base font-bold transition-colors ${isSelected ? 'text-blue-900' : 'text-slate-600'
+                                                            }`}>
+                                                            {option}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            });
+                                        })()}
                                     </div>
                                 </div>
                             </div>

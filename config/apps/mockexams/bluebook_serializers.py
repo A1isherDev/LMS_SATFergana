@@ -88,6 +88,10 @@ class BluebookExamAttemptSerializer(serializers.ModelSerializer):
     is_active = serializers.ReadOnlyField()
     current_module_time_remaining = serializers.ReadOnlyField()
     current_progress = serializers.ReadOnlyField()
+    status = serializers.SerializerMethodField()
+    remaining_seconds = serializers.SerializerMethodField()
+    answers = serializers.SerializerMethodField()
+    flagged_questions = serializers.SerializerMethodField()
     
     class Meta:
         model = BluebookExamAttempt
@@ -95,15 +99,38 @@ class BluebookExamAttemptSerializer(serializers.ModelSerializer):
             'id', 'exam', 'student', 'started_at', 'submitted_at',
             'current_section', 'current_module', 'completed_modules',
             'reading_writing_difficulty', 'math_difficulty',
-            'module_answers', 'module_time_spent', 'flagged_questions',
+            'module_answers', 'module_time_spent',
             'is_completed', 'is_paused', 'reading_writing_score',
             'math_score', 'total_score', 'responses', 'duration_seconds',
-            'is_active', 'current_module_time_remaining', 'current_progress'
+            'is_active', 'current_module_time_remaining', 'current_progress',
+            'status', 'remaining_seconds', 'answers', 'flagged_questions'
         ]
         read_only_fields = [
             'student', 'started_at', 'submitted_at', 'is_completed',
             'reading_writing_score', 'math_score', 'total_score'
         ]
+    
+    def get_status(self, obj):
+        if obj.is_completed:
+            return 'COMPLETED'
+        if not obj.started_at:
+            return 'CREATED'
+        return 'STARTED'
+    
+    def get_remaining_seconds(self, obj):
+        return obj.current_module_time_remaining if obj.current_module else 0
+    
+    def get_answers(self, obj):
+        if not obj.current_module:
+            return {}
+        module_id = str(obj.current_module.id)
+        return obj.module_answers.get(module_id, {})
+    
+    def get_flagged_questions(self, obj):
+        if not obj.current_module:
+            return []
+        module_id = str(obj.current_module.id)
+        return obj.flagged_questions.get(module_id, [])
 
 
 class BluebookExamAttemptCreateSerializer(serializers.ModelSerializer):
@@ -183,6 +210,10 @@ class BluebookExamStatusSerializer(serializers.ModelSerializer):
     is_active = serializers.ReadOnlyField()
     current_module_time_remaining = serializers.ReadOnlyField()
     current_progress = serializers.ReadOnlyField()
+    status = serializers.SerializerMethodField()
+    remaining_seconds = serializers.SerializerMethodField()
+    answers = serializers.SerializerMethodField()
+    flagged_questions = serializers.SerializerMethodField()
     
     class Meta:
         model = BluebookExamAttempt
@@ -192,8 +223,31 @@ class BluebookExamStatusSerializer(serializers.ModelSerializer):
             'reading_writing_difficulty', 'math_difficulty',
             'is_completed', 'is_paused', 'reading_writing_score',
             'math_score', 'total_score', 'duration_seconds',
-            'is_active', 'current_module_time_remaining', 'current_progress'
+            'is_active', 'current_module_time_remaining', 'current_progress',
+            'status', 'remaining_seconds', 'answers', 'flagged_questions'
         ]
+    
+    def get_status(self, obj):
+        if obj.is_completed:
+            return 'COMPLETED'
+        if not obj.started_at:
+            return 'CREATED'
+        return 'STARTED'
+    
+    def get_remaining_seconds(self, obj):
+        return obj.current_module_time_remaining if obj.current_module else 0
+    
+    def get_answers(self, obj):
+        if not obj.current_module:
+            return {}
+        module_id = str(obj.current_module.id)
+        return obj.module_answers.get(module_id, {})
+    
+    def get_flagged_questions(self, obj):
+        if not obj.current_module:
+            return []
+        module_id = str(obj.current_module.id)
+        return obj.flagged_questions.get(module_id, [])
 
 
 class BluebookExamResultSerializer(serializers.ModelSerializer):
@@ -201,6 +255,9 @@ class BluebookExamResultSerializer(serializers.ModelSerializer):
     exam = BluebookExamSerializer(read_only=True)
     responses = BluebookQuestionResponseSerializer(many=True, read_only=True)
     duration_seconds = serializers.ReadOnlyField()
+    completed_at = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    modules = serializers.SerializerMethodField()
     
     # Performance analytics
     reading_writing_accuracy = serializers.SerializerMethodField()
@@ -212,13 +269,63 @@ class BluebookExamResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = BluebookExamAttempt
         fields = [
-            'id', 'exam', 'started_at', 'submitted_at',
+            'id', 'exam', 'started_at', 'submitted_at', 'completed_at', 'status',
             'reading_writing_difficulty', 'math_difficulty',
             'reading_writing_score', 'math_score', 'total_score',
-            'responses', 'duration_seconds', 'reading_writing_accuracy',
-            'math_accuracy', 'overall_accuracy', 'section_breakdown',
-            'time_analysis'
+            'responses', 'duration_seconds', 'modules',
+            'reading_writing_accuracy', 'math_accuracy', 'overall_accuracy',
+            'section_breakdown', 'time_analysis'
         ]
+    
+    def get_completed_at(self, obj):
+        return obj.submitted_at.isoformat() if obj.submitted_at else None
+    
+    def get_status(self, obj):
+        return 'COMPLETED' if obj.is_completed else 'IN_PROGRESS'
+    
+    def get_modules(self, obj):
+        """Build modules array for frontend results page from module_answers."""
+        modules_out = []
+        for section in obj.exam.sections.all():
+            for module in section.modules.all():
+                module_id_str = str(module.id)
+                answers_dict = obj.module_answers.get(module_id_str, {})
+                flagged_list = obj.flagged_questions.get(module_id_str, [])
+                questions_out = []
+                for q in module.questions.all():
+                    selected = answers_dict.get(str(q.id)) or answers_dict.get(q.id)
+                    opts = q.options or {}
+                    if not isinstance(opts, dict):
+                        opts = {}
+                    options_array = [opts.get(k) for k in ['A', 'B', 'C', 'D'] if opts.get(k)]
+                    correct_text = options_array[ord(q.correct_answer) - 65] if q.correct_answer in ('A', 'B', 'C', 'D') and len(options_array) > ord(q.correct_answer) - 65 else q.correct_answer
+                    selected_text = None
+                    if selected:
+                        if selected in ('A', 'B', 'C', 'D') and len(options_array) > ord(selected) - 65:
+                            selected_text = options_array[ord(selected) - 65]
+                        else:
+                            selected_text = selected
+                    is_correct = (selected == q.correct_answer or selected_text == correct_text) if selected else False
+                    questions_out.append({
+                        'id': q.id,
+                        'question_text': q.question_text,
+                        'question_type': q.question_type,
+                        'options': options_array,
+                        'correct_answer': correct_text,
+                        'selected_answer': selected_text,
+                        'is_correct': is_correct,
+                        'explanation': getattr(q, 'explanation', '') or '',
+                        'is_flagged': q.id in flagged_list,
+                    })
+                modules_out.append({
+                    'id': module.id,
+                    'title': f'Module {module.module_order}',
+                    'section': section.section_type.replace('_', ' & '),
+                    'questions': questions_out,
+                    'score': sum(1 for q in questions_out if q['is_correct']),
+                    'max_score': len(questions_out),
+                })
+        return modules_out
     
     def get_reading_writing_accuracy(self, obj):
         """Calculate Reading & Writing accuracy."""
@@ -317,6 +424,7 @@ class BluebookExamResultSerializer(serializers.ModelSerializer):
 class BluebookExamListSerializer(serializers.ModelSerializer):
     """Serializer for listing Bluebook exams with attempt status."""
     has_active_attempt = serializers.SerializerMethodField()
+    active_attempt_id = serializers.SerializerMethodField()
     completed_attempts = serializers.SerializerMethodField()
     
     class Meta:
@@ -324,7 +432,7 @@ class BluebookExamListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'is_active',
             'total_duration_minutes', 'has_active_attempt',
-            'completed_attempts', 'created_at'
+            'active_attempt_id', 'completed_attempts', 'created_at'
         ]
     
     def get_has_active_attempt(self, obj):
@@ -333,6 +441,14 @@ class BluebookExamListSerializer(serializers.ModelSerializer):
         return BluebookExamAttempt.objects.filter(
             exam=obj, student=user, is_completed=False
         ).exists()
+    
+    def get_active_attempt_id(self, obj):
+        """Get active attempt id for resume."""
+        user = self.context['request'].user
+        attempt = BluebookExamAttempt.objects.filter(
+            exam=obj, student=user, is_completed=False
+        ).first()
+        return attempt.id if attempt else None
     
     def get_completed_attempts(self, obj):
         """Count completed attempts."""

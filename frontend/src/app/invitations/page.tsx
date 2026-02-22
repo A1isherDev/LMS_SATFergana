@@ -62,55 +62,15 @@ export default function InvitationsPage() {
     const fetchInvitations = async () => {
         try {
             const data: any = await usersApi.getInvitations();
-            setInvitations(data.results || data);
+            const list = Array.isArray(data) ? data : (data?.results ?? data?.data ?? []);
+            setInvitations(list);
         } catch (error) {
             console.error('Error fetching invitations:', error);
-            // Mock data for development
-            setInvitations(getMockInvitations());
+            setInvitations([]);
         } finally {
             setIsLoading(false);
         }
     };
-
-    const getMockInvitations = (): Invitation[] => [
-        {
-            id: 1,
-            code: 'SAT2024ABC123',
-            email: 'student@example.com',
-            role: 'STUDENT',
-            created_by: {
-                id: 1,
-                first_name: 'John',
-                last_name: 'Smith',
-                email: 'john.smith@satfergana.com'
-            },
-            created_at: '2025-01-15T10:00:00Z',
-            expires_at: '2025-02-15T10:00:00Z',
-            is_used: true,
-            used_by: {
-                id: 2,
-                first_name: 'Alice',
-                last_name: 'Johnson',
-                email: 'alice@example.com'
-            },
-            used_at: '2025-01-16T14:30:00Z'
-        },
-        {
-            id: 2,
-            code: 'SAT2024XYZ789',
-            email: 'newstudent@example.com',
-            role: 'STUDENT',
-            created_by: {
-                id: 1,
-                first_name: 'John',
-                last_name: 'Smith',
-                email: 'john.smith@satfergana.com'
-            },
-            created_at: '2025-01-20T15:00:00Z',
-            expires_at: '2025-02-20T15:00:00Z',
-            is_used: false
-        }
-    ];
 
     const handleCreateInvitation = async () => {
         if (!newInvitation.email) {

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Settings, Activity, ShieldCheck, Database, Server } from 'lucide-react';
+import { Users, Settings, Activity, ShieldCheck, Database, Server, FileText } from 'lucide-react';
 
 export default function AdminPage() {
     const { user } = useAuth();
@@ -61,8 +61,15 @@ export default function AdminPage() {
             title: 'Content Database',
             description: 'Direct access to Question Bank and Flashcard databases.',
             icon: Database,
-            href: '/questionbank', // Or a more specific admin content view
+            href: '/questionbank',
             color: 'bg-orange-50 text-orange-600',
+        },
+        {
+            title: 'Create DSAT Mock Exam',
+            description: 'Create a new Digital SAT mock test from the question bank (English 27+27, Math 22+22).',
+            icon: FileText,
+            href: '/admin/mock-exams/create',
+            color: 'bg-indigo-50 text-indigo-600',
         }
     ];
 
