@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDate } from '@/utils/helpers';
+import { classesApi, homeworkApi } from '@/utils/api';
 
 interface Question {
   id: string;
@@ -63,19 +64,11 @@ export default function CreateHomeworkPage() {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await fetch('/api/classes/', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setClasses(data.results || data);
-        }
+        const data = await classesApi.getMyClasses() as { results?: Class[] } | Class[];
+        setClasses(Array.isArray(data) ? data : (data.results || []));
       } catch (error) {
         console.error('Error fetching classes:', error);
+        setClasses([]);
       }
     };
 
@@ -126,28 +119,34 @@ export default function CreateHomeworkPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.class_id) {
+      alert('Please select a class.');
+      return;
+    }
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/homework/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        alert('Homework created successfully!');
-        router.push('/homework');
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.detail || 'Failed to create homework'}`);
-      }
-    } catch (error) {
-      console.error('Error creating homework:', error);
-      alert('Error creating homework. Please try again.');
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        class_obj: formData.class_id,
+        due_date: formData.due_date || null,
+        difficulty_level: formData.difficulty_level,
+        is_published: formData.is_published,
+        questions: formData.questions.map(q => ({
+          question_text: q.question_text,
+          question_type: q.question_type,
+          options: q.options,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation || '',
+          points: q.points || 10
+        }))
+      };
+      await homeworkApi.createHomework(payload);
+      router.push('/homework');
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || (typeof err?.response?.data === 'object' ? JSON.stringify(err.response?.data) : 'Failed to create homework.');
+      alert(msg);
     } finally {
       setIsLoading(false);
     }

@@ -120,21 +120,9 @@ export default function ClassDetailPage() {
   };
 
   const handleRemoveStudent = async (studentId: number) => {
-    if (!confirm('Are you sure you want to remove this student from the class?')) {
-      return;
-    }
-
+    if (!confirm('Are you sure you want to remove this student from the class?')) return;
     try {
-      await fetch(`/api/classes/${classId}/remove_students/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ student_ids: [studentId] }),
-      });
-
-      alert('Student removed successfully');
+      await classesApi.removeStudents(parseInt(classId), [studentId]);
       if (classDetail) {
         setClassDetail({
           ...classDetail,
@@ -143,7 +131,7 @@ export default function ClassDetailPage() {
       }
     } catch (error) {
       console.error('Error removing student:', error);
-      alert('Error removing student. Please try again.');
+      alert('Failed to remove student. Please try again.');
     }
   };
 

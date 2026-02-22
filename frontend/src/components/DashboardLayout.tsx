@@ -1,10 +1,10 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { BookOpen, LogOut, User, Settings, BarChart3, Home, Clock, Trophy, Brain, ChevronsLeft, ChevronsRight, Target, Bell, Menu } from 'lucide-react';
+import { BookOpen, LogOut, User, Settings, BarChart3, Home, Clock, Trophy, Brain, ChevronsLeft, ChevronsRight, Target, Bell, Menu, ShieldCheck } from 'lucide-react';
 import StreakBadge from './StreakBadge';
 import StudySessionTracker from './StudySessionTracker';
 import NotificationBell from './NotificationBell';
@@ -15,8 +15,21 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+const ADMIN_ALLOWED_PATHS = ['/admin', '/notifications', '/settings', '/login'];
+
 export default function DashboardLayout({ children }: LayoutProps) {
   useKeyboardShortcuts();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user } = useAuth();
+
+  // Admin must use only Admin Panel — redirect from any other app route
+  useEffect(() => {
+    if (user?.role === 'ADMIN' && pathname && !ADMIN_ALLOWED_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+      router.replace('/admin');
+    }
+  }, [user?.role, pathname, router]);
+
   const [collapsed, setCollapsed] = useState(() => {
     try {
       const stored = localStorage.getItem('dashboard-collapsed');
@@ -27,7 +40,6 @@ export default function DashboardLayout({ children }: LayoutProps) {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
 
   const handleLogout = () => {
@@ -35,7 +47,7 @@ export default function DashboardLayout({ children }: LayoutProps) {
     router.push('/login');
   };
 
-  const navigation = [
+  const studentTeacherNav = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Classes', href: '/classes', icon: User },
     { name: 'Homework', href: '/homework', icon: Clock },
@@ -48,12 +60,14 @@ export default function DashboardLayout({ children }: LayoutProps) {
     { name: 'Notifications', href: '/notifications', icon: Bell },
   ];
 
-  // Add Invitations for teachers and admins
-  const teacherNavigation = user?.role === 'TEACHER' || user?.role === 'ADMIN'
-    ? [...navigation.slice(0, 2), { name: 'Invitations', href: '/invitations', icon: User }, ...navigation.slice(2)]
-    : navigation;
+  const withInvitations = user?.role === 'TEACHER'
+    ? [...studentTeacherNav.slice(0, 2), { name: 'Invitations', href: '/invitations', icon: User }, ...studentTeacherNav.slice(2)]
+    : studentTeacherNav;
 
-  const finalNavigation = teacherNavigation;
+  // Admin: only Admin Panel in main nav (manage everything from /admin)
+  const finalNavigation = user?.role === 'ADMIN'
+    ? [{ name: 'Admin Panel', href: '/admin', icon: ShieldCheck }, { name: 'Notifications', href: '/notifications', icon: Bell }]
+    : withInvitations;
 
   return (
     <div className="min-h-screen bg-background">

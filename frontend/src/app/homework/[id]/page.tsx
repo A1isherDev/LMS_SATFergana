@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDate, formatDateTime, getDifficultyColor } from '@/utils/helpers';
 import GradingModal from '@/components/GradingModal';
+import { homeworkApi } from '@/utils/api';
 
 interface Question {
   id: number;
@@ -95,158 +96,30 @@ export default function HomeworkDetailPage() {
   const [startTime] = useState(Date.now());
   const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
   const [showGradingModal, setShowGradingModal] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchHomeworkDetail = async () => {
+    if (!homeworkId) return;
+    setIsLoading(true);
+    setFetchError(null);
+    try {
+      const data = await homeworkApi.getHomeworkDetail(parseInt(homeworkId)) as HomeworkDetail;
+      setHomework(data);
+      if (data.user_submission?.answers) {
+        setUserAnswers(data.user_submission.answers);
+      }
+    } catch (error) {
+      console.error('Error fetching homework detail:', error);
+      setHomework(null);
+      setFetchError('Failed to load homework. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchHomeworkDetail = async () => {
-      try {
-        const response = await fetch(`/api/homework/${homeworkId}/`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setHomework(data);
-          // Initialize user answers if they exist
-          if (data.user_submission) {
-            setUserAnswers(data.user_submission.answers);
-          }
-        } else {
-          // Fallback to mock data
-          const mockData = getMockHomeworkDetail();
-          setHomework(mockData);
-        }
-      } catch (error) {
-        console.error('Error fetching homework detail:', error);
-        const mockData = getMockHomeworkDetail();
-        setHomework(mockData);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (homeworkId) {
-      fetchHomeworkDetail();
-    }
+    fetchHomeworkDetail();
   }, [homeworkId]);
-
-  const getMockHomeworkDetail = (): HomeworkDetail => ({
-    id: parseInt(homeworkId),
-    title: 'Algebra Practice Set #5',
-    description: 'Complete exercises on quadratic equations and factoring. This homework covers solving quadratic equations using factoring, quadratic formula, and completing the square.',
-    class_obj: {
-      id: 1,
-      name: 'SAT Math - Advanced'
-    },
-    assigned_by: {
-      id: 1,
-      first_name: 'John',
-      last_name: 'Smith',
-      email: 'john.smith@satfergana.com'
-    },
-    due_date: '2025-02-05T23:59:59Z',
-    is_published: true,
-    total_questions: 5,
-    difficulty_level: 'MEDIUM',
-    created_at: '2025-01-20T10:00:00Z',
-    questions: [
-      {
-        id: 1,
-        question_text: 'Solve for x: x² - 9 = 0',
-        question_type: 'MULTIPLE_CHOICE',
-        options: ['x = 3', 'x = -3', 'x = 3 or x = -3', 'No solution'],
-        correct_answer: 'x = 3 or x = -3',
-        explanation: 'Factor the equation: (x-3)(x+3) = 0, so x = 3 or x = -3',
-        points: 10
-      },
-      {
-        id: 2,
-        question_text: 'What is the discriminant of 2x² + 4x + 2 = 0?',
-        question_type: 'MULTIPLE_CHOICE',
-        options: ['16', '0', '8', '-8'],
-        correct_answer: '0',
-        explanation: 'Discriminant = b² - 4ac = 4² - 4(2)(2) = 16 - 16 = 0',
-        points: 10
-      },
-      {
-        id: 3,
-        question_text: 'Complete the square: x² + 6x + ?',
-        question_type: 'TEXT',
-        correct_answer: '9',
-        explanation: 'To complete the square, add (b/2)² = (6/2)² = 9',
-        points: 10
-      },
-      {
-        id: 4,
-        question_text: 'True or False: All quadratic equations have real solutions.',
-        question_type: 'TRUE_FALSE',
-        correct_answer: 'False',
-        explanation: 'Some quadratic equations have complex solutions when the discriminant is negative.',
-        points: 10
-      },
-      {
-        id: 5,
-        question_text: 'If a quadratic equation has discriminant D > 0, how many real solutions does it have?',
-        question_type: 'MULTIPLE_CHOICE',
-        options: ['0', '1', '2', 'Infinite'],
-        correct_answer: '2',
-        explanation: 'When D > 0, the quadratic equation has two distinct real solutions.',
-        points: 10
-      }
-    ],
-    submissions: [
-      {
-        id: 1,
-        student: {
-          id: 2,
-          first_name: 'Alice',
-          last_name: 'Johnson',
-          email: 'alice@example.com'
-        },
-        submitted_at: '2025-01-25T15:30:00Z',
-        score: 40,
-        max_score: 50,
-        is_late: false,
-        answers: {
-          '1': 'x = 3 or x = -3',
-          '2': '0',
-          '3': '9',
-          '4': 'False',
-          '5': '2'
-        },
-        time_spent_seconds: 1800
-      },
-      {
-        id: 2,
-        student: {
-          id: 3,
-          first_name: 'Bob',
-          last_name: 'Wilson',
-          email: 'bob@example.com'
-        },
-        submitted_at: '2025-01-26T10:15:00Z',
-        score: 30,
-        max_score: 50,
-        is_late: false,
-        answers: {
-          '1': 'x = 3',
-          '2': '16',
-          '3': '9',
-          '4': 'True',
-          '5': '1'
-        },
-        time_spent_seconds: 2400
-      }
-    ],
-    homework_stats: {
-      submission_count: 2,
-      average_score: 35,
-      average_time_spent: 2100,
-      on_time_submission_rate: 100
-    }
-  });
 
   const handleAnswerChange = (questionId: number, answer: string) => {
     setUserAnswers(prev => ({
@@ -264,41 +137,15 @@ export default function HomeworkDetailPage() {
     setIsSubmitting(true);
     try {
       const timeSpent = Math.round((Date.now() - startTime) / 1000);
-
-      const response = await fetch(`/api/homework/${homeworkId}/submit/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          answers: userAnswers,
-          time_spent_seconds: timeSpent
-        }),
+      await homeworkApi.submitHomework(parseInt(homeworkId), {
+        answers: userAnswers,
+        time_spent_seconds: timeSpent
       });
-
-      if (response.ok) {
-        alert('Homework submitted successfully!');
-        // Refresh the data
-        const updatedData = getMockHomeworkDetail();
-        updatedData.user_submission = {
-          id: Date.now(),
-          student: user!,
-          submitted_at: new Date().toISOString(),
-          score: 0, // Will be calculated by backend
-          max_score: (homework?.total_questions || 0) * 10,
-          is_late: false,
-          answers: userAnswers,
-          time_spent_seconds: timeSpent
-        };
-        setHomework(updatedData);
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.detail || 'Failed to submit homework'}`);
-      }
-    } catch (error) {
-      console.error('Error submitting homework:', error);
-      alert('Error submitting homework. Please try again.');
+      alert('Homework submitted successfully!');
+      await fetchHomeworkDetail();
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.message || 'Failed to submit homework';
+      alert(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setIsSubmitting(false);
     }
@@ -348,13 +195,13 @@ export default function HomeworkDetailPage() {
       <AuthGuard>
         <DashboardLayout>
           <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Homework Not Found</h2>
-            <p className="text-gray-600 mb-4">The homework you're looking for doesn't exist.</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{fetchError ? 'Error Loading Homework' : 'Homework Not Found'}</h2>
+            <p className="text-gray-600 mb-4">{fetchError || "The homework you're looking for doesn't exist."}</p>
             <button
-              onClick={() => router.back()}
+              onClick={() => fetchError ? fetchHomeworkDetail() : router.back()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Go Back
+              {fetchError ? 'Retry' : 'Go Back'}
             </button>
           </div>
         </DashboardLayout>
@@ -362,23 +209,9 @@ export default function HomeworkDetailPage() {
     );
   }
 
-  const isOverdue = homework ? new Date() > new Date(homework.due_date) : false;
+  const isOverdue = new Date() > new Date(homework.due_date);
   const isSubmitted = !!homework?.user_submission;
   const canSubmit = !isSubmitted && !isOverdue && user?.role === 'STUDENT';
-
-  // Early return if homework is null
-  if (!homework) {
-    return (
-      <AuthGuard>
-        <DashboardLayout>
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h2>
-            <p className="text-gray-600">Please wait while we load the homework.</p>
-          </div>
-        </DashboardLayout>
-      </AuthGuard>
-    );
-  }
 
   return (
     <AuthGuard>

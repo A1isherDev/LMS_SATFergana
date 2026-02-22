@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDate } from '@/utils/helpers';
+import { rankingsApi } from '@/utils/api';
 
 interface LeaderboardEntry {
   student: {
@@ -87,21 +88,13 @@ export default function RankingsPage() {
   useEffect(() => {
     const fetchRankings = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/rankings/leaderboard/?period_type=${selectedPeriod}&limit=50`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json',
-          },
+        const data = await rankingsApi.getLeaderboard({ period_type: selectedPeriod, limit: 50 }) as any;
+        setPeriodInfo({
+          start: data.period_start,
+          end: data.period_end
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          setPeriodInfo({
-            start: data.period_start,
-            end: data.period_end
-          });
-
-          const transformedData = data.leaderboard?.map((entry: any, index: number) => ({
+        const transformedData = (data.leaderboard || []).map((entry: any) => ({
             student: {
               id: entry.student_id,
               first_name: entry.student_name?.split(' ')[0] || 'Student',
@@ -119,20 +112,15 @@ export default function RankingsPage() {
             homework_completion_rate: entry.homework_completion_rate || 0,
             homework_accuracy: entry.homework_accuracy || 0,
             mock_exam_count: entry.mock_exam_count || 0
-          })) || [];
+          }));
 
-          setLeaderboard(transformedData);
-
-          // Extract unique classes from the data
-          const uniqueClasses = [...new Set(transformedData.map((entry: LeaderboardEntry) => entry.class_name).filter(Boolean))] as string[];
-          setAvailableClasses(uniqueClasses);
-        } else {
-          setLeaderboard([]);
-          setAvailableClasses([]);
-        }
+        setLeaderboard(transformedData);
+        const uniqueClasses = [...new Set(transformedData.map((entry: LeaderboardEntry) => entry.class_name).filter(Boolean))] as string[];
+        setAvailableClasses(uniqueClasses);
       } catch (error) {
         console.error('Error fetching rankings:', error);
         setLeaderboard([]);
+        setAvailableClasses([]);
       } finally {
         setIsLoading(false);
       }

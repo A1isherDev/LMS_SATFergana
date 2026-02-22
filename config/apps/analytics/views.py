@@ -1237,10 +1237,10 @@ def get_teacher_dashboard_stats(teacher):
     now = timezone.now()
     
     # Classes taught
-    classes_count = teacher.taught_classes.count()
-    total_students = teacher.taught_classes.aggregate(
-        total=Sum('students__count')
-    )['total'] or 0
+    classes_count = teacher.teaching_classes.count()
+    total_students = sum(
+        c.students.count() for c in teacher.teaching_classes.all()
+    )
     
     # Homework assigned
     homework_assigned = Homework.objects.filter(assigned_by=teacher).count()

@@ -40,12 +40,7 @@ export default function UserManagementPage() {
             }
         } catch (error) {
             console.error('Error fetching users:', error);
-            // Fallback mock data for demo if API fails (since backend might not have this endpoint yet)
-            setUsers([
-                { id: 1, email: 'admin@example.com', first_name: 'System', last_name: 'Admin', role: 'ADMIN', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-                { id: 2, email: 'teacher@example.com', first_name: 'John', last_name: 'Doe', role: 'TEACHER', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-                { id: 3, email: 'student@example.com', first_name: 'Jane', last_name: 'Smith', role: 'STUDENT', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            ]);
+            setUsers([]);
         } finally {
             setIsLoading(false);
         }

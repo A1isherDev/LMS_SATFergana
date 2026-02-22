@@ -25,6 +25,7 @@ interface BluebookExam {
   is_active: boolean;
   total_duration_minutes: number;
   has_active_attempt: boolean;
+  active_attempt_id: number | null;
   completed_attempts: number;
 }
 
@@ -39,6 +40,8 @@ interface BluebookAttempt {
 // Main Component
 const BluebookDigitalSATPage: React.FC = () => {
   const router = useRouter();
+  const { user } = useAuth();
+  const canCreate = user?.role === 'ADMIN' || user?.role === 'TEACHER';
 
   const [exams, setExams] = useState<BluebookExam[]>([]);
   const [attempts, setAttempts] = useState<BluebookAttempt[]>([]);
@@ -56,28 +59,8 @@ const BluebookDigitalSATPage: React.FC = () => {
         bluebookApi.getExams(),
         bluebookApi.getAttempts()
       ]);
-      
-      console.log('API Response - Exams:', examsResponse);
-      console.log('API Response - Attempts:', attemptsResponse);
-      console.log('Exams Response Type:', typeof examsResponse);
-      console.log('Exams Response isArray:', Array.isArray(examsResponse));
-      console.log('Attempts Response Type:', typeof attemptsResponse);
-      console.log('Attempts Response isArray:', Array.isArray(attemptsResponse));
-      
-      // Debug: Check if response has data property
-      if (examsResponse && typeof examsResponse === 'object' && 'data' in examsResponse) {
-        console.log('Exams Response has data property:', examsResponse.data);
-      }
-      if (attemptsResponse && typeof attemptsResponse === 'object' && 'data' in attemptsResponse) {
-        console.log('Attempts Response has data property:', attemptsResponse.data);
-      }
-      
-      const examsData = Array.isArray(examsResponse) ? examsResponse : (examsResponse as any)?.data || [];
-      const attemptsData = Array.isArray(attemptsResponse) ? attemptsResponse : (attemptsResponse as any)?.data || [];
-      
-      console.log('Processed Exams Data:', examsData);
-      console.log('Processed Attempts Data:', attemptsData);
-      
+      const examsData = Array.isArray(examsResponse) ? examsResponse : (examsResponse as any)?.results ?? (examsResponse as any)?.data ?? [];
+      const attemptsData = Array.isArray(attemptsResponse) ? attemptsResponse : (attemptsResponse as any)?.results ?? (attemptsResponse as any)?.data ?? [];
       setExams(examsData);
       setAttempts(attemptsData);
     } catch (error) {
@@ -90,8 +73,12 @@ const BluebookDigitalSATPage: React.FC = () => {
 
   const startExam = async (exam: BluebookExam) => {
     try {
-      const response = await bluebookApi.startExam(exam.id);
-      router.push(`/mockexams/bluebook/${exam.id}`);
+      const response = await bluebookApi.startExam(exam.id) as { id: number };
+      if (response?.id) {
+        router.push(`/mockexams/bluebook/${response.id}`);
+      } else {
+        toast.error('Invalid response from server');
+      }
     } catch (error) {
       console.error('Error starting exam:', error);
       toast.error('Failed to start exam');
@@ -143,11 +130,21 @@ const BluebookDigitalSATPage: React.FC = () => {
         <div className="p-6">
           <div className="max-w-6xl mx-auto">
             {/* Header */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Digital SAT Practice</h1>
-              <p className="text-gray-600">
-                Experience the official Digital SAT format with adaptive modules and built-in calculator
-              </p>
+            <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Digital SAT Practice</h1>
+                <p className="text-gray-600">
+                  Experience the official Digital SAT format with adaptive modules and built-in calculator
+                </p>
+              </div>
+              {canCreate && (
+                <Link
+                  href="/admin/mock-exams/create"
+                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
+                >
+                  Create DSAT Test
+                </Link>
+              )}
             </div>
 
             {/* Tabs */}
@@ -239,14 +236,23 @@ const BluebookDigitalSATPage: React.FC = () => {
                     </div>
 
                     <div className="mt-6 flex space-x-3">
-                      <button
-                        onClick={() => startExam(exam)}
-                        disabled={exam.has_active_attempt}
-                        className="flex-1 flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        {exam.has_active_attempt ? 'Resume' : 'Start Exam'}
-                      </button>
+                      {exam.has_active_attempt && exam.active_attempt_id ? (
+                        <button
+                          onClick={() => resumeExam(exam.active_attempt_id!)}
+                          className="flex-1 flex items-center justify-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Resume Exam
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => startExam(exam)}
+                          className="flex-1 flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Start Exam
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

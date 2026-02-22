@@ -51,15 +51,21 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class QuestionListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for question lists."""
+    """Lightweight serializer for question lists (includes question_text for card preview)."""
     question_type_display = serializers.CharField(source='get_question_type_display', read_only=True)
-    
+    tags = serializers.SerializerMethodField()
+
     class Meta:
         model = Question
         fields = [
             'id', 'question_type', 'question_type_display', 'skill_tag',
-            'difficulty', 'estimated_time_seconds', 'is_active', 'created_at'
+            'difficulty', 'question_text', 'options', 'estimated_time_seconds',
+            'is_active', 'created_at', 'tags'
         ]
+
+    def get_tags(self, obj):
+        """Return skill_tag as a list for frontend compatibility."""
+        return [obj.skill_tag] if obj.skill_tag else []
 
 
 class QuestionStudentSerializer(serializers.ModelSerializer):
@@ -112,34 +118,44 @@ class QuestionAttemptSerializer(serializers.ModelSerializer):
 
 
 class QuestionAttemptCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating question attempts (simplified)."""
-    
+    """Serializer for creating question attempts. Accepts time_taken_seconds/attempt_type from frontend."""
+    time_taken_seconds = serializers.IntegerField(required=False, min_value=0)
+    attempt_type = serializers.CharField(required=False, default='PRACTICE')
+
     class Meta:
         model = QuestionAttempt
-        fields = ['question', 'selected_answer', 'time_spent_seconds', 'context']
-    
+        fields = ['question', 'selected_answer', 'time_spent_seconds', 'time_taken_seconds', 'context', 'attempt_type']
+
     def validate_question(self, value):
         """Validate question is active."""
         if not value.is_active:
             raise serializers.ValidationError("Cannot attempt inactive question")
         return value
-    
+
     def validate_selected_answer(self, value):
         """Validate selected answer."""
         valid_answers = ['A', 'B', 'C', 'D']
         if value not in valid_answers:
             raise serializers.ValidationError("Selected answer must be A, B, C, or D")
         return value
-    
-    def validate_time_spent_seconds(self, value):
-        """Validate time spent."""
-        if value < 0:
-            raise serializers.ValidationError("Time spent cannot be negative")
-        return value
-    
+
+    def validate(self, attrs):
+        """Map time_taken_seconds -> time_spent_seconds, attempt_type -> context."""
+        if 'time_taken_seconds' in attrs and 'time_spent_seconds' not in attrs:
+            attrs['time_spent_seconds'] = attrs.pop('time_taken_seconds', 0)
+        if 'attempt_type' in attrs:
+            attrs['context'] = attrs.pop('attempt_type', 'PRACTICE')
+        if attrs.get('time_spent_seconds', 0) < 0:
+            raise serializers.ValidationError({"time_spent_seconds": "Time spent cannot be negative"})
+        return attrs
+
     def create(self, validated_data):
-        """Create attempt with current student."""
+        """Create attempt with current student and set is_correct."""
+        validated_data.pop('time_taken_seconds', None)
+        validated_data.pop('attempt_type', None)
         validated_data['student'] = self.context['request'].user
+        question = validated_data['question']
+        validated_data['is_correct'] = (validated_data.get('selected_answer') == question.correct_answer)
         return super().create(validated_data)
 
 

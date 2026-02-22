@@ -32,48 +32,14 @@ export default function LeaderboardTable({ classId }: LeaderboardTableProps) {
         setIsLoading(true);
         try {
             const data: any = await classesApi.getClassLeaderboard(classId, period);
-            setLeaderboard(data.leaderboard);
+            setLeaderboard(Array.isArray(data?.leaderboard) ? data.leaderboard : data ? [data] : []);
         } catch (error) {
             console.error('Error fetching leaderboard:', error);
-            // Fallback to mock data if API fails
-            setLeaderboard(getMockLeaderboard());
+            setLeaderboard([]);
         } finally {
             setIsLoading(false);
         }
     };
-
-    const getMockLeaderboard = (): LeaderboardEntry[] => [
-        {
-            student_id: 4,
-            student_name: 'Carol Davis',
-            student_email: 'carol@example.com',
-            total_points: 1250,
-            homework_completion_rate: 95,
-            homework_accuracy: 92,
-            average_mock_score: 1350,
-            rank: 1
-        },
-        {
-            student_id: 2,
-            student_name: 'Alice Johnson',
-            student_email: 'alice@example.com',
-            total_points: 1180,
-            homework_completion_rate: 88,
-            homework_accuracy: 85,
-            average_mock_score: 1280,
-            rank: 2
-        },
-        {
-            student_id: 3,
-            student_name: 'Bob Wilson',
-            student_email: 'bob@example.com',
-            total_points: 1050,
-            homework_completion_rate: 82,
-            homework_accuracy: 78,
-            average_mock_score: 1150,
-            rank: 3
-        }
-    ];
 
     const getRankIcon = (rank: number) => {
         switch (rank) {

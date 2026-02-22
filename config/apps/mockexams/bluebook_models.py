@@ -122,16 +122,12 @@ class BluebookModule(TimestampedModel):
     
     def clean(self):
         """Validate module structure."""
-        if self.section.section_type == 'READING_WRITING':
+        if self.section_id and self.section.section_type == 'READING_WRITING':
             if self.time_limit_minutes != 32:
                 raise ValidationError("Reading & Writing modules must be 32 minutes each")
-            if self.module_order == 2 and self.difficulty_level == 'BASELINE':
-                raise ValidationError("Module 2 must have adaptive difficulty (Easier or Harder)")
-        elif self.section.section_type == 'MATH':
+        elif self.section_id and self.section.section_type == 'MATH':
             if self.time_limit_minutes != 35:
                 raise ValidationError("Math modules must be 35 minutes each")
-            if self.module_order == 2 and self.difficulty_level == 'BASELINE':
-                raise ValidationError("Module 2 must have adaptive difficulty (Easier or Harder)")
     
     @property
     def is_adaptive(self):

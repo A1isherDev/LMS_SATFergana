@@ -6,14 +6,15 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, Max, Min
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.mockexams.bluebook_models import (
-    BluebookExam, BluebookSection, BluebookModule, 
+    BluebookExam, BluebookSection, BluebookModule,
     BluebookExamAttempt, BluebookQuestionResponse
 )
+from apps.questionbank.models import Question
 from apps.mockexams.bluebook_serializers import (
     BluebookExamSerializer, BluebookSectionSerializer, 
     BluebookModuleSerializer, BluebookExamAttemptSerializer,
@@ -171,6 +172,44 @@ class BluebookExamViewSet(viewsets.ModelViewSet):
             BluebookExamAttemptSerializer(attempt).data,
             status=status.HTTP_201_CREATED
         )
+
+    @extend_schema(
+        summary="Populate exam with questions",
+        description="Populate this exam with questions from the question bank. English: 27 per module (54 total). Math: 22 per module (44 total).",
+        tags=["Bluebook Digital SAT"]
+    )
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsTeacherOrAdmin])
+    def populate_questions(self, request, pk=None):
+        """Populate exam with questions from question bank (DSAT structure)."""
+        exam = self.get_object()
+        sections = list(exam.sections.all().prefetch_related('modules'))
+        rw_section = next((s for s in sections if s.section_type == 'READING_WRITING'), None)
+        math_section = next((s for s in sections if s.section_type == 'MATH'), None)
+
+        rw_modules = list(rw_section.modules.all()) if rw_section else []
+        rw_questions = list(Question.objects.filter(
+            question_type__in=['READING', 'WRITING'],
+            is_active=True
+        ).order_by('?')[:54])
+        for i, mod in enumerate(rw_modules[:2]):
+            start, end = i * 27, (i + 1) * 27
+            mod.questions.set(rw_questions[start:end])
+
+        math_modules = list(math_section.modules.all()) if math_section else []
+        math_questions = list(Question.objects.filter(
+            question_type='MATH',
+            is_active=True
+        ).order_by('?')[:44])
+        for i, mod in enumerate(math_modules[:2]):
+            start, end = i * 22, (i + 1) * 22
+            mod.questions.set(math_questions[start:end])
+
+        return Response({
+            'message': 'Exam populated with questions from question bank',
+            'exam_id': exam.id,
+            'reading_writing_count': 54,
+            'math_count': 44,
+        })
 
 
 class BluebookExamAttemptViewSet(viewsets.ModelViewSet):
@@ -529,19 +568,3 @@ class BluebookManagementViewSet(viewsets.ViewSet):
         
         return Response(stats)
     
-    @extend_schema(
-        summary="Populate exam with questions",
-        description="Populate an exam with appropriate questions.",
-        tags=["Bluebook Digital SAT Management"]
-    )
-    @action(detail=True, methods=['post'])
-    def populate_questions(self, request, pk=None):
-        """Populate exam with questions."""
-        exam = BluebookExam.objects.get(pk=pk)
-        
-        # This would implement logic to select appropriate questions
-        # For now, just return success
-        return Response({
-            'message': 'Question population logic to be implemented',
-            'exam_id': exam.id
-        })
