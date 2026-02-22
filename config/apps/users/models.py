@@ -41,14 +41,15 @@ class User(AbstractUser, TimestampedModel):
     Custom User model with email as username and role-based access.
     """
     ROLE_CHOICES = [
-        ('STUDENT', 'Student'),
-        ('TEACHER', 'Teacher'),
         ('ADMIN', 'Admin'),
+        ('MAIN_TEACHER', 'Main Teacher'),
+        ('SUPPORT_TEACHER', 'Support Teacher'),
+        ('STUDENT', 'Student'),
     ]
     
     username = None  # Remove username field
     email = models.EmailField(unique=True, db_index=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='STUDENT', db_index=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='STUDENT', db_index=True)
     invitation_code = models.CharField(max_length=50, blank=True, null=True, db_index=True)
     invited_by = models.ForeignKey(
         'self',
@@ -57,6 +58,9 @@ class User(AbstractUser, TimestampedModel):
         blank=True,
         related_name='invited_users'
     )
+    # Organization field removed
+    # Department field removed
+    
     
     # Streak tracking
     last_active_date = models.DateField(
@@ -95,6 +99,29 @@ class User(AbstractUser, TimestampedModel):
         help_text="Short biography or description"
     )
     
+    # Subscription management
+    subscription_end_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Date when student's subscription expires"
+    )
+    is_frozen = models.BooleanField(
+        default=False,
+        help_text="Manually freeze/unfreeze account"
+    )
+    
+    # Teacher hierarchy
+    assigned_main_teacher = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='support_teachers',
+        limit_choices_to={'role': 'MAIN_TEACHER'},
+        help_text="Main teacher for this support teacher"
+    )
+    
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
     
@@ -117,12 +144,31 @@ class User(AbstractUser, TimestampedModel):
         return self.role == 'STUDENT'
     
     @property
+    def is_main_teacher(self):
+        return self.role == 'MAIN_TEACHER'
+
+    @property
+    def is_support_teacher(self):
+        return self.role == 'SUPPORT_TEACHER'
+    
+    @property
     def is_teacher(self):
-        return self.role == 'TEACHER'
+        return self.role in ['MAIN_TEACHER', 'SUPPORT_TEACHER']
     
     @property
     def is_admin(self):
         return self.role == 'ADMIN' or self.is_staff
+
+    @property
+    def has_active_subscription(self):
+        """Check if student has an active subscription."""
+        if not self.is_student:
+            return True
+        if self.is_frozen:
+            return False
+        if not self.subscription_end_date:
+            return False
+        return self.subscription_end_date >= timezone.now().date()
     
     def update_streak(self):
         """Update user's streak based on last active date."""
@@ -212,8 +258,10 @@ class Invitation(TimestampedModel):
     Invitation system for invitation-only registration.
     """
     ROLE_CHOICES = [
+        ('ADMIN', 'Admin'),
+        ('MAIN_TEACHER', 'Main Teacher'),
+        ('SUPPORT_TEACHER', 'Support Teacher'),
         ('STUDENT', 'Student'),
-        ('TEACHER', 'Teacher'),
     ]
     
     code = models.CharField(max_length=50, unique=True, db_index=True)
@@ -224,7 +272,7 @@ class Invitation(TimestampedModel):
         db_index=True
     )
     email = models.EmailField(db_index=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='STUDENT')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='STUDENT')
     is_used = models.BooleanField(default=False, db_index=True)
     used_by = models.ForeignKey(
         User,
@@ -235,6 +283,7 @@ class Invitation(TimestampedModel):
     )
     used_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(db_index=True)
+    # Organization field removed
     
     class Meta:
         db_table = 'invitations'

@@ -7,8 +7,8 @@ from apps.rankings.views import RankingViewSet
 
 
 router = DefaultRouter()
-router.register(r'rankings', RankingViewSet, basename='ranking')
+router.register(r'', RankingViewSet, basename='ranking')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('rankings/', include(router.urls)),
 ]

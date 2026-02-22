@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Save
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../../contexts/AuthContext';
 import { classesApi } from '../../../utils/api';
 
@@ -41,27 +42,28 @@ export default function CreateClassPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const toastId = toast.loading('Creating class cohort...');
 
     try {
       await classesApi.createClass(formData);
-      console.log('Class created successfully!');
+      toast.success('Class cohort established successfully', { id: toastId });
       router.push('/classes');
     } catch (error: any) {
       console.error('Error creating class:', error);
       const errorMessage = error.response?.data?.detail || error.message || 'Failed to create class';
-      console.error(`Error: ${errorMessage}`);
+      toast.error(`Creation failed: ${errorMessage}`, { id: toastId });
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (user?.role !== 'TEACHER') {
+  if (user?.role !== 'ADMIN') {
     return (
       <AuthGuard>
         <DashboardLayout>
           <div className="text-center py-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-            <p className="text-gray-600">Only teachers can create classes.</p>
+            <p className="text-gray-600">Only admins can create classes.</p>
           </div>
         </DashboardLayout>
       </AuthGuard>

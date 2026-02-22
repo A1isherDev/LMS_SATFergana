@@ -3,7 +3,7 @@ Serializers for the homework app.
 """
 from rest_framework import serializers
 from apps.homework.models import Homework, HomeworkSubmission
-from apps.questionbank.serializers import QuestionStudentSerializer
+# from apps.questionbank.serializers import QuestionStudentSerializer  # Moved to inline to avoid circular import
 
 
 class HomeworkSerializer(serializers.ModelSerializer):
@@ -14,7 +14,8 @@ class HomeworkSerializer(serializers.ModelSerializer):
     total_questions = serializers.ReadOnlyField()
     is_overdue = serializers.ReadOnlyField()
     days_until_due = serializers.ReadOnlyField()
-    questions = QuestionStudentSerializer(many=True, read_only=True)
+    # questions = QuestionStudentSerializer(many=True, read_only=True)  # Using method field for inline import
+    questions = serializers.SerializerMethodField()
     question_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
@@ -48,6 +49,11 @@ class HomeworkSerializer(serializers.ModelSerializer):
         if submitted.exists():
             return submitted.aggregate(avg_score=Avg('score'))['avg_score']
         return 0
+    
+    def get_questions(self, obj):
+        """Get questions with student view."""
+        from apps.questionbank.serializers import QuestionStudentSerializer
+        return QuestionStudentSerializer(obj.questions.all(), many=True).data
     
     def validate_class_obj(self, value):
         """Validate that user is the teacher of the class."""
@@ -191,7 +197,7 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
             'id', 'homework', 'homework_title', 'student', 'student_name',
             'student_email', 'submitted_at', 'is_submitted', 'is_late',
             'score', 'accuracy_percentage', 'answers', 'time_spent_seconds',
-            'feedback', 'answer_summary', 'created_at', 'updated_at'
+            'feedback', 'submission_file', 'answer_summary', 'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'is_late', 'score', 'created_at', 'updated_at'
@@ -203,6 +209,13 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
     
     def validate_answers(self, value):
         """Validate answers format."""
+        import json
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Answers must be valid JSON")
+
         if not isinstance(value, dict):
             raise serializers.ValidationError("Answers must be a dictionary")
         
@@ -228,10 +241,17 @@ class HomeworkSubmissionCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = HomeworkSubmission
-        fields = ['answers', 'time_spent_seconds']
+        fields = ['answers', 'time_spent_seconds', 'submission_file']
     
     def validate_answers(self, value):
         """Validate answers format."""
+        import json
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Answers must be valid JSON string")
+
         if not isinstance(value, dict):
             raise serializers.ValidationError("Answers must be a dictionary")
         

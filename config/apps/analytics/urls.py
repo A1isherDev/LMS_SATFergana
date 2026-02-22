@@ -11,7 +11,10 @@ from apps.analytics.views import (
     dashboard_stats,
     system_health,
     system_stats,
-    system_logs
+    system_stats,
+    system_logs,
+    system_config,
+    update_system_config
 )
 
 
@@ -27,6 +30,8 @@ urlpatterns = [
     path('system/health/', system_health, name='system-health'),
     path('system/stats/', system_stats, name='system-stats'),
     path('system/logs/', system_logs, name='system-logs'),
+    path('system/config/', system_config, name='system-config'),
+    path('system/config/update/', update_system_config, name='system-config-update'),
     # AnalyticsViewSet actions (since it's a GenericViewSet)
     path('analytics/student_summary/', AnalyticsViewSet.as_view({'get': 'student_summary'}), name='analytics-student-summary'),
     path('analytics/class_analytics/<int:class_id>/', AnalyticsViewSet.as_view({'get': 'class_analytics'}), name='analytics-class-analytics'),

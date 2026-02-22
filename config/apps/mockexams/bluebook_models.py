@@ -512,7 +512,7 @@ class BluebookQuestionResponse(TimestampedModel):
     module = models.ForeignKey(BluebookModule, on_delete=models.CASCADE, related_name='responses')
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='bluebook_responses')
     
-    selected_answer = models.CharField(max_length=10)
+    selected_answer = models.CharField(max_length=50)
     is_correct = models.BooleanField(default=False)
     time_spent_seconds = models.IntegerField(default=0)
     is_flagged = models.BooleanField(default=False)

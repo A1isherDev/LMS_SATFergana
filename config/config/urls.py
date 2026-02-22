@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/', include('apps.flashcards.urls')),
     path('api/', include('apps.rankings.urls')),
     path('api/', include('apps.analytics.urls')),
+    path('api/financials/', include('apps.financials.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
     
     # JWT token endpoints

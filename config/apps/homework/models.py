@@ -3,10 +3,10 @@ Homework models for the SAT LMS platform.
 """
 from django.db import models
 from django.utils import timezone
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, TenantModel
 
 
-class Homework(TimestampedModel):
+class Homework(TenantModel):
     """
     Homework assignment model.
     """
@@ -23,7 +23,7 @@ class Homework(TimestampedModel):
         on_delete=models.CASCADE,
         related_name='assigned_homework',
         db_index=True,
-        limit_choices_to={'role': 'TEACHER'}
+        limit_choices_to={'role__in': ['ADMIN', 'MAIN_TEACHER']}
     )
     due_date = models.DateTimeField(db_index=True)
     questions = models.ManyToManyField(
@@ -40,10 +40,17 @@ class Homework(TimestampedModel):
         db_index=True,
         help_text="Whether this homework is visible to students"
     )
+    topic = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Specific topic or subcategory this homework addresses (for analytics tracking)"
+    )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'homework'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['class_obj']),
             models.Index(fields=['assigned_by']),
             models.Index(fields=['due_date']),
@@ -97,7 +104,7 @@ class Homework(TimestampedModel):
         super().save(*args, **kwargs)
 
 
-class HomeworkSubmission(TimestampedModel):
+class HomeworkSubmission(TenantModel):
     """
     Homework submission model.
     """
@@ -142,10 +149,16 @@ class HomeworkSubmission(TimestampedModel):
         blank=True,
         help_text="Teacher feedback on the submission"
     )
+    submission_file = models.FileField(
+        upload_to='homework_submissions/%Y/%m/%d/',
+        null=True,
+        blank=True,
+        help_text="Optional file submission (document, image, etc.)"
+    )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'homework_submissions'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['homework', 'student']),
             models.Index(fields=['student', 'submitted_at']),
             models.Index(fields=['homework', 'submitted_at']),
@@ -153,6 +166,111 @@ class HomeworkSubmission(TimestampedModel):
         ]
         ordering = ['-created_at']
         unique_together = ['homework', 'student']
+    
+    def __str__(self):
+        return f"{self.student.email} - {self.homework.title}"
+    
+    @property
+    def is_submitted(self):
+        """Check if homework has been submitted."""
+        return self.submitted_at is not None
+    
+    @property
+    def accuracy_percentage(self):
+        """Get accuracy as percentage."""
+        if self.score is None or self.homework.max_score == 0:
+            return 0.0
+        return (self.score / self.homework.max_score) * 100
+    
+    def calculate_score(self):
+        """Auto-grade the homework based on answers."""
+        if not self.answers:
+            self.score = 0
+            return self.score
+        
+        total_questions = 0
+        correct_answers = 0
+        
+        for question_id, selected_answer in self.answers.items():
+            try:
+                question = self.homework.questions.get(id=question_id)
+                total_questions += 1
+                
+                if selected_answer == question.correct_answer:
+                    correct_answers += 1
+                    
+            except self.homework.questions.model.DoesNotExist:
+                continue
+        
+        # Calculate score (10 points per correct answer)
+        self.score = correct_answers * 10
+        
+        # Ensure score doesn't exceed max_score
+        self.score = min(self.score, self.homework.max_score)
+        
+        return self.score
+    
+    def check_late_submission(self):
+        """Check if submission is late and update accordingly."""
+        if self.submitted_at and self.submitted_at > self.homework.due_date:
+            self.is_late = True
+        else:
+            self.is_late = False
+    
+    def submit(self):
+        """Submit the homework."""
+        if not self.is_submitted:
+            self.submitted_at = timezone.now()
+            self.check_late_submission()
+            self.calculate_score()
+            self.save()
+    
+    def get_answer_summary(self):
+        """Get summary of answers with correctness."""
+        if not self.answers:
+            return {}
+        
+        summary = {}
+        for question_id, selected_answer in self.answers.items():
+            try:
+                question = self.homework.questions.get(id=question_id)
+                is_correct = selected_answer == question.correct_answer
+                
+                summary[question_id] = {
+                    'question_text': question.question_text[:100] + '...' if len(question.question_text) > 100 else question.question_text,
+                    'selected_answer': selected_answer,
+                    'correct_answer': question.correct_answer,
+                    'is_correct': is_correct,
+                    'explanation': question.explanation if not is_correct else None
+                }
+            except self.homework.questions.model.DoesNotExist:
+                continue
+        
+        return summary
+    
+    def clean(self):
+        """Validate submission data."""
+        from django.core.exceptions import ValidationError
+        
+        if self.time_spent_seconds < 0:
+            raise ValidationError("Time spent cannot be negative")
+        
+        # Validate answers format
+        if self.answers and not isinstance(self.answers, dict):
+            raise ValidationError("Answers must be a dictionary")
+    
+    def save(self, *args, **kwargs):
+        self.clean()
+        
+        # Auto-calculate score if answers are provided
+        if self.answers and not self.pk:  # New submission
+            self.calculate_score()
+        
+        # Check late submission if submitted_at is set
+        if self.submitted_at:
+            self.check_late_submission()
+        
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return f"{self.student.email} - {self.homework.title}"

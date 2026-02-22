@@ -254,3 +254,32 @@ def get_initial_spaced_repetition_values() -> Dict[str, Any]:
         'review_count': 0,   # No reviews yet
         'is_mastered': False
     }
+def log_action(user, action, resource_type, resource_id=None, description=None, changes=None, request=None):
+    """
+    Utility function to create an AuditLog entry.
+    
+    Args:
+        user: User performing the action
+        action: Action type from AuditLog.ACTION_CHOICES
+        resource_type: Type of resource affected
+        resource_id: ID of the resource affected
+        description: Text description of the action
+        changes: Dictionary of changes made
+        request: HttpRequest object to extract IP and User Agent
+    """
+    from apps.common.models import AuditLog
+    
+    log_data = {
+        'user': user,
+        'action': action,
+        'resource_type': resource_type,
+        'resource_id': str(resource_id) if resource_id else None,
+        'description': description,
+        'changes': changes or {},
+    }
+    
+    if request:
+        log_data['ip_address'] = request.META.get('REMOTE_ADDR')
+        log_data['user_agent'] = request.META.get('HTTP_USER_AGENT')
+
+    return AuditLog.objects.create(**log_data)

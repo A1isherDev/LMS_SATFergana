@@ -10,21 +10,21 @@ export const API_ENDPOINTS = {
     REFRESH: '/auth/refresh/',
     VERIFY: '/auth/verify/',
   },
-  
+
   // Users
   USERS: {
     ME: '/users/me/',
     PROFILE: '/users/profile/',
     INVITATIONS: '/users/invitations/',
   },
-  
+
   // Classes
   CLASSES: {
     LIST: '/classes/',
     DETAIL: (id: string) => `/classes/${id}/`,
     LEADERBOARD: (id: string) => `/classes/${id}/leaderboard/`,
   },
-  
+
   // Homework
   HOMEWORK: {
     LIST: '/homework/',
@@ -32,20 +32,20 @@ export const API_ENDPOINTS = {
     SUBMISSIONS: (id: string) => `/homework/${id}/submissions/`,
     MY_SUBMISSIONS: '/homework/my_submissions/',
   },
-  
+
   // Question Bank
   QUESTION_BANK: {
     QUESTIONS: '/questionbank/questions/',
     ATTEMPTS: '/questionbank/attempts/',
     MY_ATTEMPTS: '/questionbank/my_attempts/',
   },
-  
+
   // Mock Exams
   MOCK_EXAMS: {
     LIST: '/mock-exams/',
     DETAIL: (id: string) => `/mock-exams/${id}/`,
     ATTEMPTS: '/mock-exam-attempts/',
-    MY_ATTEMPTS: '/mock-exam-attempts/',
+    MY_ATTEMPTS: '/mock-exam-attempts/my_attempts/',
     START: (id: string) => `/mock-exams/${id}/start/`,
     SUBMIT: (id: string) => `/mock-exams/${id}/submit/`,
   },
@@ -63,7 +63,7 @@ export const API_ENDPOINTS = {
     FLAG_QUESTION: (id: string) => `/bluebook/attempts/${id}/flag_question/`,
     GET_RESULTS: (id: string) => `/bluebook/attempts/${id}/results/`,
   },
-  
+
   // Flashcards
   FLASHCARDS: {
     LIST: '/flashcards/',
@@ -73,7 +73,7 @@ export const API_ENDPOINTS = {
     REVIEW_NEXT: '/flashcards/review/next/',
     UPDATE_PROGRESS: (id: string) => `/flashcards/${id}/progress/`,
   },
-  
+
   // Rankings
   RANKINGS: {
     LEADERBOARD: '/rankings/leaderboard/',
@@ -83,18 +83,22 @@ export const API_ENDPOINTS = {
     HISTORY: '/rankings/history/',
     TOP_PERFORMERS: '/rankings/top_performers/',
   },
-  
+
   // Analytics
   ANALYTICS: {
-    PROGRESS: '/analytics/progress/',
-    MY_PROGRESS: '/analytics/progress/my_progress/',
-    PROGRESS_CHART: '/analytics/progress/progress_chart/',
-    WEAK_AREAS: '/analytics/weak_areas/',
-    MY_WEAK_AREAS: '/analytics/weak_areas/my_weak_areas/',
-    STUDY_SESSIONS: '/analytics/study_sessions/',
-    MY_SESSIONS: '/analytics/study_sessions/my_sessions/',
+    PROGRESS: '/analytics/student-progress/',
+    MY_PROGRESS: '/analytics/student-progress/my_progress/',
+    PROGRESS_CHART: '/analytics/student-progress/progress_chart/',
+    WEAK_AREAS: '/analytics/weak-areas/',
+    MY_WEAK_AREAS: '/analytics/weak-areas/my_weak_areas/',
+    STUDY_SESSIONS: '/analytics/study-sessions/',
+    MY_SESSIONS: '/analytics/study-sessions/my_sessions/',
     STUDENT_SUMMARY: '/analytics/student_summary/',
     CLASS_ANALYTICS: (id: string) => `/analytics/class_analytics/${id}/`,
+    SYSTEM_HEALTH: '/system/health/',
+    SYSTEM_STATS: '/system/stats/',
+    SYSTEM_LOGS: '/system/logs/',
+    DASHBOARD_STATS: '/dashboard/stats/',
   },
 } as const;
 

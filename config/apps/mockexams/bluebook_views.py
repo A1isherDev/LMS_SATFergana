@@ -173,7 +173,7 @@ class ExamAnalyticsViewSet(viewsets.ViewSet):
                 is_completed=True
             )
 
-        # Get peer group data (same class/school if available)
+        # Get peer group data
         peer_attempts = MockExamAttempt.objects.filter(
             is_completed=True
         ).exclude(student=user)

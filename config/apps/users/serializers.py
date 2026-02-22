@@ -20,9 +20,11 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'email', 'first_name', 'last_name', 'role', 'role_display',
             'date_joined', 'is_active', 'invited_by',
             'last_active_date', 'streak_count', 'streak_display',
-            'phone_number', 'date_of_birth', 'grade_level', 'bio'
+            'phone_number', 'date_of_birth', 'grade_level', 'bio',
+            'subscription_end_date', 'has_active_subscription', 'is_frozen',
+            'assigned_main_teacher'
         ]
-        read_only_fields = ['id', 'date_joined', 'is_active', 'last_active_date', 'streak_count']
+        read_only_fields = ['id', 'date_joined', 'is_active', 'last_active_date', 'streak_count', 'has_active_subscription']
 
 
 class StudentProfileSerializer(serializers.ModelSerializer):

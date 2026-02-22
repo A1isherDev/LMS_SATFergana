@@ -52,15 +52,18 @@ INSTALLED_APPS = [
     'apps.rankings',
     'apps.analytics',
     'apps.notifications',
+    # 'apps.organizations', # Removed
+    'apps.financials',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    # 'apps.common.middleware.TenantMiddleware', # Removed
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.common.middleware.SubscriptionMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

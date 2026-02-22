@@ -1,6 +1,7 @@
 """
 Serializers for the analytics app.
 """
+from django.utils import timezone
 from rest_framework import serializers
 from apps.analytics.models import StudentProgress, WeakArea, StudySession
 
@@ -132,7 +133,7 @@ class ClassAnalyticsSerializer(serializers.Serializer):
     average_homework_accuracy = serializers.FloatField()
     top_performer = serializers.DictField()
     struggling_students = serializers.ListField()
-    class_weak_areas = serializers.ListField()
+    class_weak_areas = serializers.ListField(child=serializers.DictField())
     study_time_stats = serializers.DictField()
 
 
@@ -162,7 +163,8 @@ class StudySessionUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudySession
         fields = [
-            'questions_attempted', 'questions_correct', 'flashcards_reviewed'
+            'questions_attempted', 'questions_correct', 'flashcards_reviewed',
+            'duration_minutes', 'ended_at'
         ]
 
 

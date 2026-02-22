@@ -22,10 +22,11 @@ from apps.classes.serializers import (
     ClassResourceSerializer
 )
 from apps.classes.models import ClassResource
-from apps.common.permissions import IsTeacherOrAdmin, IsClassTeacher, IsStudentInClass
+from apps.common.permissions import IsTeacherOrAdmin, IsStudentInClass, IsStudent, IsClassTeacher, IsAdmin
+from apps.common.views import AuditLogMixin
 
 
-class ClassViewSet(viewsets.ModelViewSet):
+class ClassViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for Class model.
     Different access levels based on user role.
@@ -40,18 +41,19 @@ class ClassViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
+        base_queryset = Class.objects.select_related('teacher', 'department').prefetch_related('students')
         
         if user.is_admin:
-            return Class.objects.select_related('teacher').prefetch_related('students').all()
+            return base_queryset.all()
+        elif user.is_dept_lead:
+            # Department leads see all classes in their department
+            return base_queryset.filter(department=user.department)
         elif user.is_teacher:
-            return Class.objects.filter(
-                teacher=user
-            ).select_related('teacher').prefetch_related('students')
+            # Teachers see classes they explicitly teach
+            return base_queryset.filter(teacher=user)
         elif user.is_student:
-            return Class.objects.filter(
-                students=user,
-                is_active=True
-            ).select_related('teacher').prefetch_related('students')
+            # Students see classes they are enrolled in
+            return base_queryset.filter(students=user, is_active=True)
         else:
             return Class.objects.none()
     
@@ -64,9 +66,9 @@ class ClassViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Set permissions based on action."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsTeacherOrAdmin()]
+            return [IsAdmin()]
         elif self.action in ['enroll_students', 'remove_students']:
-            return [IsClassTeacher()]
+            return [IsAdmin()]
         elif self.action in ['leaderboard', 'announcements']:
             return [IsStudentInClass() | IsClassTeacher()]
         elif self.action in ['post_announcement']:
@@ -74,20 +76,26 @@ class ClassViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
     
     def perform_create(self, serializer):
-        """Set teacher to current user if not provided and set default dates."""
+        """Set teacher and default dates safely."""
         from datetime import date, timedelta
+        from rest_framework.exceptions import ValidationError
         
-        # Set default dates if not provided
+        save_kwargs = {}
         validated_data = serializer.validated_data
+        
+        # Admins must provide a teacher_id
+        if 'teacher_id' not in validated_data:
+            raise ValidationError({"teacher_id": "Admins must specify a teacher for the class."})
+
+        # 2. Set default dates if not provided
         if 'start_date' not in validated_data:
-            validated_data['start_date'] = date.today()
+            save_kwargs['start_date'] = date.today()
         if 'end_date' not in validated_data:
-            validated_data['end_date'] = date.today() + timedelta(days=180)  # 6 months default
+            save_kwargs['end_date'] = date.today() + timedelta(days=180)  # 6 months default
             
-        if self.request.user.is_teacher:
-            serializer.save(teacher=self.request.user, **validated_data)
-        else:
-            serializer.save(**validated_data)
+        # 3. Save with injected data
+        instance = serializer.save(**save_kwargs)
+        self.log_audit(instance, 'CREATE')
     
     @extend_schema(
         summary="Enroll students in class",
@@ -415,7 +423,7 @@ class ClassViewSet(viewsets.ModelViewSet):
         return Response(response_data)
 
 
-class ClassResourceViewSet(viewsets.ModelViewSet):
+class ClassResourceViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for Class Resources.
     """

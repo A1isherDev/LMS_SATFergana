@@ -2,10 +2,10 @@
 Question bank models for the SAT LMS platform.
 """
 from django.db import models
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, TenantModel
 
 
-class Question(TimestampedModel):
+class Question(TenantModel):
     """
     Question model for SAT practice questions.
     """
@@ -41,12 +41,17 @@ class Question(TimestampedModel):
         help_text="Optional image for the question"
     )
     options = models.JSONField(
+        null=True,
+        blank=True,
         help_text="Multiple choice options: {A: '...', B: '...', C: '...', D: '...'}"
     )
     correct_answer = models.CharField(
-        max_length=1,
-        choices=[('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')],
-        help_text="Correct answer choice"
+        max_length=50,
+        help_text="Correct answer choice (A/B/C/D or text for math input)"
+    )
+    is_math_input = models.BooleanField(
+        default=False,
+        help_text="Whether this is a math input (grid-in) question"
     )
     explanation = models.TextField(
         help_text="Explanation of the correct answer"
@@ -61,9 +66,9 @@ class Question(TimestampedModel):
         help_text="Whether this question is available for use"
     )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'questions'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['question_type']),
             models.Index(fields=['skill_tag']),
             models.Index(fields=['difficulty']),
@@ -82,21 +87,25 @@ class Question(TimestampedModel):
         import json
         
         # Validate options JSON structure
-        try:
-            if isinstance(self.options, str):
-                options_dict = json.loads(self.options)
-            else:
-                options_dict = self.options
-            
-            required_keys = ['A', 'B', 'C', 'D']
-            if not all(key in options_dict for key in required_keys):
-                raise ValidationError("Options must contain A, B, C, and D keys")
-            
-            if self.correct_answer not in required_keys:
-                raise ValidationError("Correct answer must be one of: A, B, C, D")
+        if not self.is_math_input:
+            try:
+                if not self.options:
+                    raise ValidationError("Options must be provided for multiple choice questions")
                 
-        except (json.JSONDecodeError, TypeError):
-            raise ValidationError("Options must be valid JSON with A, B, C, D keys")
+                if isinstance(self.options, str):
+                    options_dict = json.loads(self.options)
+                else:
+                    options_dict = self.options
+                
+                required_keys = ['A', 'B', 'C', 'D']
+                if not all(key in options_dict for key in required_keys):
+                    raise ValidationError("Options must contain A, B, C, and D keys")
+                
+                if self.correct_answer not in required_keys:
+                    raise ValidationError("Correct answer must be one of: A, B, C, D")
+                    
+            except (json.JSONDecodeError, TypeError):
+                raise ValidationError("Options must be valid JSON with A, B, C, D keys")
         
         if self.estimated_time_seconds <= 0:
             raise ValidationError("Estimated time must be greater than 0")
@@ -106,7 +115,7 @@ class Question(TimestampedModel):
         super().save(*args, **kwargs)
 
 
-class QuestionAttempt(TimestampedModel):
+class QuestionAttempt(TenantModel):
     """
     Model to track student attempts at questions.
     """
@@ -130,8 +139,7 @@ class QuestionAttempt(TimestampedModel):
         limit_choices_to={'role': 'STUDENT'}
     )
     selected_answer = models.CharField(
-        max_length=1,
-        choices=[('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')],
+        max_length=50,
         help_text="Answer selected by the student"
     )
     is_correct = models.BooleanField(
@@ -154,9 +162,9 @@ class QuestionAttempt(TimestampedModel):
         help_text="Context in which the question was attempted"
     )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'question_attempts'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['student', 'question', 'attempted_at']),
             models.Index(fields=['student', 'attempted_at']),
             models.Index(fields=['question', 'is_correct']),
@@ -177,7 +185,7 @@ class QuestionAttempt(TimestampedModel):
             raise ValidationError("Time spent cannot be negative")
         
         # Check if selected answer is valid for this question
-        if self.question:
+        if self.question and not self.question.is_math_input:
             valid_answers = ['A', 'B', 'C', 'D']
             if self.selected_answer not in valid_answers:
                 raise ValidationError("Selected answer must be A, B, C, or D")
@@ -209,3 +217,5 @@ class QuestionAttempt(TimestampedModel):
             return 0.0
         
         return (correct_attempts / total_attempts) * 100
+    
+

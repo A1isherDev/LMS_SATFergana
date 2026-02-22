@@ -3,10 +3,10 @@ Analytics models for the SAT LMS platform.
 """
 from django.db import models
 from django.utils import timezone
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, TenantModel
 
 
-class StudentProgress(TimestampedModel):
+class StudentProgress(TenantModel):
     """
     Student progress tracking model.
     """
@@ -69,9 +69,9 @@ class StudentProgress(TimestampedModel):
         help_text="Current study streak in days"
     )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'student_progress'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['student', 'date']),
             models.Index(fields=['date']),
             models.Index(fields=['student', 'streak_days']),
@@ -132,7 +132,7 @@ class StudentProgress(TimestampedModel):
         
         progress.homework_completed = homework_submissions.count()
         
-        # Get total homework assigned (simplified - could be enhanced)
+        # Get total homework assigned
         from apps.homework.models import Homework
         total_homework = Homework.objects.filter(
             due_date__date=date,
@@ -182,7 +182,7 @@ class StudentProgress(TimestampedModel):
         return progress
 
 
-class WeakArea(TimestampedModel):
+class WeakArea(TenantModel):
     """
     Student weak areas analysis model.
     """
@@ -225,9 +225,9 @@ class WeakArea(TimestampedModel):
         db_index=True
     )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'weak_areas'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['student', 'area_type']),
             models.Index(fields=['student', 'weakness_score']),
             models.Index(fields=['area_type', 'weakness_score']),
@@ -298,45 +298,26 @@ class WeakArea(TimestampedModel):
     @staticmethod
     def _get_subcategory(question):
         """Determine subcategory based on question content."""
-        # This is a simplified implementation
-        # In a real system, you might use tags, topics, or content analysis
-        
         content = (question.question_text + ' ' + (question.explanation or '')).lower()
-        
         if question.question_type == 'MATH':
-            if 'algebra' in content:
-                return 'Algebra'
-            elif 'geometry' in content:
-                return 'Geometry'
-            elif 'statistics' in content or 'probability' in content:
-                return 'Statistics & Probability'
-            else:
-                return 'General Math'
-        
+            if 'algebra' in content: return 'Algebra'
+            elif 'geometry' in content: return 'Geometry'
+            elif 'statistics' in content or 'probability' in content: return 'Statistics & Probability'
+            else: return 'General Math'
         elif question.question_type == 'READING':
-            if 'main idea' in content:
-                return 'Main Idea'
-            elif 'inference' in content:
-                return 'Inference'
-            elif 'vocabulary' in content:
-                return 'Vocabulary in Context'
-            else:
-                return 'General Reading'
-        
+            if 'main idea' in content: return 'Main Idea'
+            elif 'inference' in content: return 'Inference'
+            elif 'vocabulary' in content: return 'Vocabulary in Context'
+            else: return 'General Reading'
         elif question.question_type == 'WRITING':
-            if 'grammar' in content:
-                return 'Grammar'
-            elif 'punctuation' in content:
-                return 'Punctuation'
-            elif 'style' in content:
-                return 'Style & Tone'
-            else:
-                return 'General Writing'
-        
+            if 'grammar' in content: return 'Grammar'
+            elif 'punctuation' in content: return 'Punctuation'
+            elif 'style' in content: return 'Style & Tone'
+            else: return 'General Writing'
         return 'General'
 
 
-class StudySession(TimestampedModel):
+class StudySession(TenantModel):
     """
     Study session tracking model.
     """
@@ -381,9 +362,9 @@ class StudySession(TimestampedModel):
         help_text="Number of flashcards reviewed"
     )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'study_sessions'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['student', 'started_at']),
             models.Index(fields=['session_type', 'started_at']),
             models.Index(fields=['started_at']),

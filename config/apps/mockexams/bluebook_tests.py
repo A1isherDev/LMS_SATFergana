@@ -30,7 +30,7 @@ class BluebookExamModelTests(TestCase):
             password='testpass123',
             first_name='Teacher',
             last_name='User',
-            role='TEACHER'
+            role='MAIN_TEACHER'
         )
         
         self.student = User.objects.create_user(
@@ -532,7 +532,7 @@ class BluebookAPITests(APITestCase):
             password='testpass123',
             first_name='Teacher',
             last_name='User',
-            role='TEACHER'
+            role='MAIN_TEACHER'
         )
         
         self.student = User.objects.create_user(

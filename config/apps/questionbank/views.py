@@ -7,7 +7,9 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from django.db.models import Q, Count, Avg, F
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.analytics.models import WeakArea, StudentProgress
 from apps.questionbank.models import Question, QuestionAttempt
 from apps.questionbank.serializers import (
     QuestionSerializer,
@@ -19,9 +21,10 @@ from apps.questionbank.serializers import (
     StudentProgressSerializer
 )
 from apps.common.permissions import IsTeacherOrAdmin, IsStudent
+from apps.common.views import AuditLogMixin
 
 
-class QuestionViewSet(viewsets.ModelViewSet):
+class QuestionViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for Question model.
     Different access levels for teachers/admins vs students.
@@ -39,21 +42,21 @@ class QuestionViewSet(viewsets.ModelViewSet):
             OpenApiParameter(
                 name='question_type',
                 type=OpenApiTypes.STR,
-                enum=['MULTIPLE_CHOICE', 'GRID_RESPONSE'],
-                description='Filter by question type',
+                enum=['MATH', 'READING', 'WRITING'],
+                description='Filter by SAT section',
                 required=False
             ),
             OpenApiParameter(
                 name='difficulty',
-                type=OpenApiTypes.STR,
-                enum=['EASY', 'MEDIUM', 'HARD'],
-                description='Filter by difficulty level',
+                type=OpenApiTypes.INT,
+                enum=[1, 2, 3, 4, 5],
+                description='Filter by difficulty level (1-5)',
                 required=False
             ),
             OpenApiParameter(
                 name='skill_tag',
                 type=OpenApiTypes.STR,
-                description='Filter by skill tag (e.g., algebra, geometry)',
+                description='Filter by skill tag',
                 required=False
             )
         ]
@@ -65,11 +68,40 @@ class QuestionViewSet(viewsets.ModelViewSet):
         if user.is_admin:
             return Question.objects.all()
         elif user.is_teacher:
+            # Main and Support teachers have access to all questions
             return Question.objects.all()
         elif user.is_student:
             return Question.objects.filter(is_active=True)
         else:
             return Question.objects.none()
+
+    @extend_schema(
+        summary="Get topic counts",
+        description="Get count of questions grouped by question type and skill tag.",
+        tags=["Question Bank"],
+        responses={200: {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'question_type': {'type': 'string'},
+                    'skill_tag': {'type': 'string'},
+                    'count': {'type': 'integer'}
+                }
+            }
+        }}
+    )
+    @action(detail=False, methods=['get'])
+    def topic_counts(self, request):
+        """Get count of questions grouped by type and skill tag."""
+        queryset = self.get_queryset()
+        
+        # Aggregate counts
+        counts = queryset.values('question_type', 'skill_tag').annotate(
+            count=Count('id')
+        ).order_by('question_type', 'skill_tag')
+        
+        return Response(list(counts))
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action and user role."""
@@ -95,19 +127,19 @@ class QuestionViewSet(viewsets.ModelViewSet):
             OpenApiParameter(
                 name='question_type',
                 type=OpenApiTypes.STR,
-                enum=['MULTIPLE_CHOICE', 'GRID_RESPONSE'],
-                description='Filter by question type',
+                enum=['MATH', 'READING', 'WRITING'],
+                description='Filter by SAT section',
                 required=False
             ),
             OpenApiParameter(
                 name='difficulty',
-                type=OpenApiTypes.STR,
-                enum=['EASY', 'MEDIUM', 'HARD'],
-                description='Filter by difficulty level',
+                type=OpenApiTypes.INT,
+                enum=[1, 2, 3, 4, 5],
+                description='Filter by difficulty level (1-5)',
                 required=False
             ),
             OpenApiParameter(
-                name='limit',
+                name='count',
                 type=OpenApiTypes.INT,
                 description='Number of questions to return',
                 required=False
@@ -197,6 +229,14 @@ class QuestionViewSet(viewsets.ModelViewSet):
         
         attempt = serializer.save()
         
+        # Trigger analytics updates
+        try:
+            WeakArea.analyze_student_weak_areas(request.user)
+            StudentProgress.update_daily_progress(request.user)
+        except Exception as e:
+            # Don't fail the attempt if analytics fails
+            print(f"Analytics update failed: {e}")
+        
         # Return attempt result with explanation
         response_data = {
             'attempt': QuestionAttemptSerializer(attempt).data,
@@ -227,8 +267,12 @@ class QuestionViewSet(viewsets.ModelViewSet):
         skill_tag = request.query_params.get('skill_tag')
         difficulty = request.query_params.get('difficulty')
         
-        # Build queryset
-        queryset = Question.objects.all()
+        # Build queryset with annotations
+        queryset = Question.objects.annotate(
+            total_attempts=Count('attempts'),
+            correct_attempts=Count('attempts', filter=Q(attempts__is_correct=True)),
+            avg_time=Avg('attempts__time_spent_seconds')
+        )
         
         if question_type:
             queryset = queryset.filter(question_type=question_type)
@@ -237,33 +281,25 @@ class QuestionViewSet(viewsets.ModelViewSet):
         if difficulty:
             queryset = queryset.filter(difficulty=difficulty)
         
-        # Calculate statistics
+        # Format results
         questions_with_stats = []
-        
-        for question in queryset:
-            attempts = QuestionAttempt.objects.filter(question=question)
-            
-            total_attempts = attempts.count()
-            correct_attempts = attempts.filter(is_correct=True).count()
-            accuracy = (correct_attempts / total_attempts * 100) if total_attempts > 0 else 0
-            avg_time = attempts.aggregate(avg_time=Avg('time_spent_seconds'))['avg_time'] or 0
-            
+        for q in queryset:
+            accuracy = (q.correct_attempts / q.total_attempts * 100) if q.total_attempts > 0 else 0
             questions_with_stats.append({
-                'question_id': question.id,
-                'question_type': question.question_type,
-                'skill_tag': question.skill_tag,
-                'difficulty': question.difficulty,
-                'total_attempts': total_attempts,
-                'correct_attempts': correct_attempts,
+                'question_id': q.id,
+                'question_type': q.get_question_type_display(),
+                'skill_tag': q.skill_tag,
+                'difficulty': q.difficulty,
+                'total_attempts': q.total_attempts,
+                'correct_attempts': q.correct_attempts,
                 'accuracy_percentage': round(accuracy, 2),
-                'average_time_seconds': round(avg_time, 2)
+                'average_time_seconds': round(q.avg_time or 0, 2)
             })
         
-        serializer = QuestionStatsSerializer(questions_with_stats, many=True)
-        return Response(serializer.data)
+        return Response(questions_with_stats)
 
 
-class QuestionAttemptViewSet(viewsets.ModelViewSet):
+class QuestionAttemptViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for QuestionAttempt model.
     Students can only see their own attempts.
@@ -326,10 +362,7 @@ class QuestionAttemptViewSet(viewsets.ModelViewSet):
     def my_progress(self, request):
         """Get current student's progress statistics."""
         if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can view their progress"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response([], status=status.HTTP_200_OK)
         
         student = request.user
         
@@ -391,10 +424,7 @@ class QuestionAttemptViewSet(viewsets.ModelViewSet):
     def recent(self, request):
         """Get recent attempts for the current student."""
         if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can view their attempts"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response([], status=status.HTTP_200_OK)
         
         limit = int(request.query_params.get('limit', 20))
         attempts = QuestionAttempt.objects.filter(

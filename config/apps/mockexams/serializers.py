@@ -3,7 +3,7 @@ Serializers for the mockexams app.
 """
 from rest_framework import serializers
 from apps.mockexams.models import MockExam, MockExamAttempt
-from apps.questionbank.serializers import QuestionStudentSerializer
+# from apps.questionbank.serializers import QuestionStudentSerializer  # Moved to inline to avoid circular import
 
 
 class MockExamSerializer(serializers.ModelSerializer):
@@ -11,9 +11,14 @@ class MockExamSerializer(serializers.ModelSerializer):
     exam_type_display = serializers.CharField(source='get_exam_type_display', read_only=True)
     total_questions = serializers.ReadOnlyField()
     total_time_seconds = serializers.ReadOnlyField()
-    math_questions = QuestionStudentSerializer(many=True, read_only=True)
-    reading_questions = QuestionStudentSerializer(many=True, read_only=True)
-    writing_questions = QuestionStudentSerializer(many=True, read_only=True)
+    total_questions = serializers.ReadOnlyField()
+    total_time_seconds = serializers.ReadOnlyField()
+    # math_questions = QuestionStudentSerializer(many=True, read_only=True)
+    # reading_questions = QuestionStudentSerializer(many=True, read_only=True)
+    # writing_questions = QuestionStudentSerializer(many=True, read_only=True)
+    math_questions = serializers.SerializerMethodField()
+    reading_questions = serializers.SerializerMethodField()
+    writing_questions = serializers.SerializerMethodField()
     math_question_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
@@ -44,6 +49,18 @@ class MockExamSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_math_questions(self, obj):
+        from apps.questionbank.serializers import QuestionStudentSerializer
+        return QuestionStudentSerializer(obj.math_questions.all(), many=True).data
+
+    def get_reading_questions(self, obj):
+        from apps.questionbank.serializers import QuestionStudentSerializer
+        return QuestionStudentSerializer(obj.reading_questions.all(), many=True).data
+
+    def get_writing_questions(self, obj):
+        from apps.questionbank.serializers import QuestionStudentSerializer
+        return QuestionStudentSerializer(obj.writing_questions.all(), many=True).data
     
     def validate_question_ids(self, value, question_type):
         """Validate question IDs for a specific type."""
@@ -207,6 +224,7 @@ class MockExamAttemptSerializer(serializers.ModelSerializer):
             'math_raw_score', 'reading_raw_score', 'writing_raw_score',
             'total_raw_score', 'math_scaled_score', 'reading_scaled_score',
             'writing_scaled_score', 'sat_score', 'overall_progress',
+            'answers', 'time_spent_by_section',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -247,15 +265,50 @@ class MockExamAttemptDetailSerializer(MockExamAttemptSerializer):
     mock_exam = MockExamSerializer(read_only=True)
     
     class Meta(MockExamAttemptSerializer.Meta):
-        fields = MockExamAttemptSerializer.Meta.fields + ['mock_exam']
+        fields = MockExamAttemptSerializer.Meta.fields
+
+
+class MockExamAttemptReviewSerializer(MockExamAttemptSerializer):
+    """
+    Detailed serializer for mock exam attempts with full question info (for review).
+    Includes correct answers and explanations.
+    """
+    class MockExamReviewSerializer(MockExamSerializer):
+        math_questions = serializers.SerializerMethodField()
+        reading_questions = serializers.SerializerMethodField()
+        writing_questions = serializers.SerializerMethodField()
+
+        def get_math_questions(self, obj):
+            from apps.questionbank.serializers import QuestionReviewSerializer
+            return QuestionReviewSerializer(obj.math_questions.all(), many=True).data
+
+        def get_reading_questions(self, obj):
+            from apps.questionbank.serializers import QuestionReviewSerializer
+            return QuestionReviewSerializer(obj.reading_questions.all(), many=True).data
+
+        def get_writing_questions(self, obj):
+            from apps.questionbank.serializers import QuestionReviewSerializer
+            return QuestionReviewSerializer(obj.writing_questions.all(), many=True).data
+
+    mock_exam = MockExamReviewSerializer(read_only=True)
+
+    class Meta(MockExamAttemptSerializer.Meta):
+        fields = MockExamAttemptSerializer.Meta.fields
 
 
 class MockExamSectionSerializer(serializers.Serializer):
     """Serializer for individual exam sections."""
     section = serializers.CharField()
-    questions = QuestionStudentSerializer(many=True)
+    # questions = QuestionStudentSerializer(many=True)
+    questions = serializers.SerializerMethodField()
     time_limit_seconds = serializers.IntegerField()
     progress_percentage = serializers.FloatField()
+
+    def get_questions(self, obj):
+        from apps.questionbank.serializers import QuestionStudentSerializer
+        # obj is assumed to be a dict or object with 'questions' attribute
+        questions = obj.get('questions', []) if isinstance(obj, dict) else getattr(obj, 'questions', [])
+        return QuestionStudentSerializer(questions, many=True).data
 
 
 class MockExamSubmissionSerializer(serializers.Serializer):

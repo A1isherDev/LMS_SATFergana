@@ -3,10 +3,10 @@ Mock exam models for the SAT LMS platform.
 """
 from django.db import models
 from django.utils import timezone
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, TenantModel
 
 
-class MockExam(TimestampedModel):
+class MockExam(TenantModel):
     """
     Mock exam model with section-based timing.
     """
@@ -62,13 +62,13 @@ class MockExam(TimestampedModel):
         db_index=True,
         help_text="Whether this exam is available for students"
     )
+    # Department field removed
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'mock_exams'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['exam_type']),
             models.Index(fields=['is_active']),
-            models.Index(fields=['created_at']),
         ]
         ordering = ['-created_at']
     
@@ -122,7 +122,7 @@ class MockExam(TimestampedModel):
         # Skip M2M validation if instance is not saved yet (creates circular dependency)
         if not self.pk:
             return
-
+    
         from django.core.exceptions import ValidationError
         
         if self.exam_type == 'FULL':
@@ -154,7 +154,7 @@ class MockExam(TimestampedModel):
         super().save(*args, **kwargs)
 
 
-class MockExamAttempt(TimestampedModel):
+class MockExamAttempt(TenantModel):
     """
     Student attempt at a mock exam.
     """
@@ -244,9 +244,9 @@ class MockExamAttempt(TimestampedModel):
         help_text="Whether the exam attempt is completed"
     )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'mock_exam_attempts'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['student', 'submitted_at']),
             models.Index(fields=['mock_exam', 'submitted_at']),
             models.Index(fields=['sat_score']),
@@ -391,3 +391,5 @@ class MockExamAttempt(TimestampedModel):
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
+    
+

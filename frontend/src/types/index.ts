@@ -4,13 +4,17 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: 'STUDENT' | 'TEACHER' | 'ADMIN';
+  role: 'STUDENT' | 'MAIN_TEACHER' | 'SUPPORT_TEACHER' | 'ADMIN';
   invitation_code?: string;
   phone_number?: string;
   date_of_birth?: string;
   grade_level?: number;
   target_sat_score?: number;
   bio?: string;
+  subscription_end_date?: string | null;
+  is_frozen?: boolean;
+  assigned_main_teacher?: number | null;
+  assigned_main_teacher_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,7 +36,7 @@ export interface Invitation {
   code: string;
   invited_by: number;
   email: string;
-  role: 'STUDENT' | 'TEACHER';
+  role: 'STUDENT' | 'MAIN_TEACHER' | 'SUPPORT_TEACHER' | 'ADMIN';
   is_used: boolean;
   expires_at: string;
   created_at: string;
@@ -91,13 +95,14 @@ export interface HomeworkSubmission {
 export interface Question {
   id: number;
   question_text: string;
-  question_type: 'MULTIPLE_CHOICE' | 'TEXT' | 'MATH';
-  subject: 'MATH' | 'READING' | 'WRITING';
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  question_type: 'MATH' | 'READING' | 'WRITING';
+  skill_tag: string;
+  difficulty: number;
   correct_answer: string;
+  options: Record<string, string>;
   explanation: string;
-  options?: string[];
-  tags: string[];
+  estimated_time_seconds: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -108,7 +113,7 @@ export interface QuestionAttempt {
   student: number;
   selected_answer: string;
   is_correct: boolean;
-  time_taken_seconds: number;
+  time_spent_seconds: number;
   attempt_type: 'PRACTICE' | 'HOMEWORK' | 'MOCK_EXAM';
   created_at: string;
 }

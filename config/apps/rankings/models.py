@@ -3,10 +3,10 @@ Ranking models for the SAT LMS platform.
 """
 from django.db import models
 from django.utils import timezone
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, TenantModel
 
 
-class Ranking(TimestampedModel):
+class Ranking(TenantModel):
     """
     Student ranking model for leaderboards.
     """
@@ -64,9 +64,9 @@ class Ranking(TimestampedModel):
         help_text="Previous rank for comparison"
     )
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'rankings'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['period_type', 'period_start', 'rank']),
             models.Index(fields=['student', 'period_type', 'period_start']),
             models.Index(fields=['period_type', 'period_start']),
@@ -119,8 +119,6 @@ class Ranking(TimestampedModel):
         if period_type == 'WEEKLY':
             # Start of current week (Monday)
             days_since_monday = now.weekday()
-            if days_since_monday == 0:  # Sunday
-                days_since_monday = 6
             start_date = now - timezone.timedelta(days=days_since_monday)
             return start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         
@@ -145,8 +143,6 @@ class Ranking(TimestampedModel):
         if period_type == 'WEEKLY':
             # End of current week (Sunday)
             days_until_sunday = 6 - now.weekday()
-            if days_until_sunday < 0:  # Sunday
-                days_until_sunday = 0
             end_date = now + timezone.timedelta(days=days_until_sunday)
             return end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
         
@@ -188,10 +184,7 @@ class Ranking(TimestampedModel):
         
         # Calculate homework completion rate
         total_homework = homework_submissions.count()
-        if total_homework > 0:
-            completion_rate = 100.0
-        else:
-            completion_rate = 0.0
+        completion_rate = 100.0 if total_homework > 0 else 0.0
         
         # Calculate homework accuracy
         if total_homework > 0:
@@ -204,11 +197,12 @@ class Ranking(TimestampedModel):
         # Calculate mock exam scores list
         sat_scores = [attempt.sat_score for attempt in mock_exam_attempts]
         
-        # Calculate total points (simple scoring system)
+        # Calculate total points
         points = 0
-        points += completion_rate * 10  # 10 points per % completion
-        points += accuracy * 5  # 5 points per % accuracy
-        points += sum(sat_scores) / 10  # 1 point per 10 SAT points
+        points += completion_rate * 10
+        points += accuracy * 5
+        if sat_scores:
+            points += sum(sat_scores) / 10
         
         return {
             'total_points': int(points),
@@ -232,22 +226,17 @@ class Ranking(TimestampedModel):
         rankings_data = []
         
         for student in students:
-            # Calculate student's performance metrics
             metrics = cls.calculate_student_points(student, period_start, period_end)
             
-            # Get previous rank for comparison
+            # Get previous rank
             try:
+                prev_start = None
                 if period_type == 'WEEKLY':
                     prev_start = period_start - timezone.timedelta(weeks=1)
-                    prev_end = period_end - timezone.timedelta(weeks=1)
                 elif period_type == 'MONTHLY':
-                    prev_start = period_start - timezone.timedelta(days=30)
-                    prev_end = period_end - timezone.timedelta(days=30)
-                else:
-                    prev_start = None
-                    prev_end = None
+                    prev_start = (period_start - timezone.timedelta(days=1)).replace(day=1)
                 
-                if prev_start and prev_end:
+                if prev_start:
                     prev_ranking = cls.objects.get(
                         student=student,
                         period_type=period_type,
@@ -268,42 +257,33 @@ class Ranking(TimestampedModel):
                 **metrics
             })
         
-        # Sort by total points (descending) and assign ranks
+        # Sort and rank
         rankings_data.sort(key=lambda x: x['total_points'], reverse=True)
-        
         for idx, data in enumerate(rankings_data, 1):
             data['rank'] = idx
         
-        # Delete existing rankings for this period
-        cls.objects.filter(
-            period_type=period_type,
-            period_start=period_start
-        ).delete()
-        
-        # Create new rankings
-        created_rankings = []
-        for data in rankings_data:
-            ranking = cls.objects.create(**data)
-            created_rankings.append(ranking)
-        
+        # Atomic update
+        from django.db import transaction
+        with transaction.atomic():
+            cls.objects.filter(period_type=period_type, period_start=period_start).delete()
+            created_rankings = [cls.objects.create(**data) for data in rankings_data]
+            
         return created_rankings
     
     def clean(self):
         """Validate ranking data."""
         from django.core.exceptions import ValidationError
-        
         if self.homework_completion_rate < 0 or self.homework_completion_rate > 100:
             raise ValidationError("Homework completion rate must be between 0 and 100")
-        
         if self.homework_accuracy < 0 or self.homework_accuracy > 100:
             raise ValidationError("Homework accuracy must be between 0 and 100")
-        
         if self.rank < 1:
             raise ValidationError("Rank must be at least 1")
-        
         if self.period_start >= self.period_end:
             raise ValidationError("Period start must be before period end")
     
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
+    
+

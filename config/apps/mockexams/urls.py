@@ -13,7 +13,8 @@ from apps.mockexams.bluebook_sat_views import (
     BluebookExamViewSet,
     BluebookExamAttemptViewSet,
     BluebookAnalyticsViewSet,
-    BluebookManagementViewSet
+    BluebookManagementViewSet,
+    BluebookModuleViewSet
 )
 
 
@@ -29,6 +30,7 @@ bluebook_router.register(r'exams', BluebookExamViewSet, basename='bluebook-exam'
 bluebook_router.register(r'attempts', BluebookExamAttemptViewSet, basename='bluebook-attempt')
 bluebook_router.register(r'analytics', BluebookAnalyticsViewSet, basename='bluebook-analytics')
 bluebook_router.register(r'management', BluebookManagementViewSet, basename='bluebook-management')
+bluebook_router.register(r'modules', BluebookModuleViewSet, basename='bluebook-module')
 
 urlpatterns = [
     path('', include(router.urls)),

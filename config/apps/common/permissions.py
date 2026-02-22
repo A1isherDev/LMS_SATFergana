@@ -17,16 +17,39 @@ class IsStudent(permissions.BasePermission):
         )
 
 
-class IsTeacher(permissions.BasePermission):
+class IsMainTeacher(permissions.BasePermission):
     """
-    Permission class to check if user is a teacher.
+    Permission class to check if user is a main teacher.
     """
     def has_permission(self, request, view):
         return (
             request.user and
             request.user.is_authenticated and
-            hasattr(request.user, 'role') and
-            request.user.role == 'TEACHER'
+            request.user.role == 'MAIN_TEACHER'
+        )
+
+
+class IsSupportTeacher(permissions.BasePermission):
+    """
+    Permission class to check if user is a support teacher.
+    """
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.role == 'SUPPORT_TEACHER'
+        )
+
+
+class IsTeacher(permissions.BasePermission):
+    """
+    Permission class to check if user is any kind of teacher.
+    """
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.is_teacher
         )
 
 
@@ -38,8 +61,7 @@ class IsAdmin(permissions.BasePermission):
         return (
             request.user and
             request.user.is_authenticated and
-            (request.user.is_staff or
-             (hasattr(request.user, 'role') and request.user.role == 'ADMIN'))
+            request.user.is_admin
         )
 
 
@@ -51,11 +73,7 @@ class IsTeacherOrAdmin(permissions.BasePermission):
         return (
             request.user and
             request.user.is_authenticated and
-            (
-                request.user.is_staff or
-                (hasattr(request.user, 'role') and 
-                 request.user.role in ['TEACHER', 'ADMIN'])
-            )
+            (request.user.is_admin or request.user.is_teacher)
         )
 
 
@@ -126,5 +144,7 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
             return obj.student == request.user
         elif hasattr(obj, 'teacher'):
             return obj.teacher == request.user
+        elif hasattr(obj, 'assigned_by'):
+            return obj.assigned_by == request.user
         
         return False

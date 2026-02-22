@@ -16,7 +16,7 @@ class AnnouncementTests(TestCase):
         self.teacher = User.objects.create_user(
             email=f'teacher_{uid}@example.com',
             password='password123',
-            role='TEACHER'
+            role='MAIN_TEACHER'
         )
         self.student = User.objects.create_user(
             email=f'student_{uid}@example.com',

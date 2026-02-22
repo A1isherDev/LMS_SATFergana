@@ -15,6 +15,7 @@ import {
     Calendar,
     AlertCircle
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime } from '../../utils/helpers';
 
@@ -113,21 +114,22 @@ export default function InvitationsPage() {
 
     const handleCreateInvitation = async () => {
         if (!newInvitation.email) {
-            alert('Please enter an email address');
+            toast.error('Please enter an email address');
             return;
         }
 
         setIsCreating(true);
+        const toastId = toast.loading('Creating invitation...');
         try {
             const data: any = await usersApi.createInvitation(newInvitation);
             setInvitations([data, ...invitations]);
             setShowCreateModal(false);
             setNewInvitation({ email: '', role: 'STUDENT' });
-            alert('Invitation created successfully!');
+            toast.success('Invitation created successfully!', { id: toastId });
         } catch (error: any) {
             console.error('Error creating invitation:', error);
             const detail = error.response?.data?.detail || error.message || 'Failed to create invitation';
-            alert(`Error: ${detail}`);
+            toast.error(`Error: ${detail}`, { id: toastId });
         } finally {
             setIsCreating(false);
         }
@@ -136,21 +138,23 @@ export default function InvitationsPage() {
     const handleCopyCode = (code: string) => {
         navigator.clipboard.writeText(code);
         setCopiedCode(code);
+        toast.success('Code copied to clipboard');
         setTimeout(() => setCopiedCode(null), 2000);
     };
 
     const handleDeleteInvitation = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this invitation?')) {
+        if (!window.confirm('Are you sure you want to delete this invitation?')) {
             return;
         }
 
+        const toastId = toast.loading('Deleting invitation...');
         try {
             await usersApi.deleteInvitation(id);
             setInvitations(invitations.filter(inv => inv.id !== id));
-            alert('Invitation deleted successfully');
+            toast.success('Invitation deleted successfully', { id: toastId });
         } catch (error) {
             console.error('Error deleting invitation:', error);
-            alert('Error deleting invitation');
+            toast.error('Error deleting invitation', { id: toastId });
         }
     };
 

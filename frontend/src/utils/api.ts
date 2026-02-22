@@ -146,40 +146,15 @@ export const authApi = {
 
 // Users API methods
 export const usersApi = {
-  getProfile: async () => {
-    // Return current user's profile
-    return apiClient.get('/users/me/');
-  },
-
-  updateProfile: async (data: any) => {
-    // Update current user's profile
-    return apiClient.patch('/users/me/', data);
-  },
-
-  getInvitations: async () => {
-    return apiClient.get('/invitations/');
-  },
-
-  createInvitation: async (data: { email: string; role: string }) => {
-    return apiClient.post('/invitations/', data);
-  },
-
-  deleteInvitation: async (id: number) => {
-    return apiClient.delete(`/invitations/${id}/`);
-  },
-
   getStudentProfile: async () => {
     return apiClient.get('/student-profiles/me/');
   },
-
   updateStudentProfile: async (data: any) => {
     return apiClient.patch('/student-profiles/me/', data);
   },
-
   updateExamDate: async (examDate: string) => {
     return apiClient.patch('/student-profiles/exam_date/', { sat_exam_date: examDate });
   },
-
   updateStreak: async () => {
     return apiClient.post('/users/update_streak/');
   },
@@ -188,31 +163,25 @@ export const usersApi = {
 // Admin API methods
 export const adminApi = {
   getUsers: async (params?: { search?: string; role?: string; page?: number }) => {
-    return apiClient.get('/users/', params);
+    return apiClient.get('/users/', { params });
   },
-
   updateUser: async (id: number, data: any) => {
     return apiClient.patch(`/users/${id}/`, data);
   },
-
   deleteUser: async (id: number) => {
     return apiClient.delete(`/users/${id}/`);
   },
-
   getSystemStats: async () => {
-    return apiClient.get('/analytics/system/stats/');
+    return apiClient.get('/system/stats/');
   },
-
   getSystemConfig: async () => {
-    return apiClient.get('/admin/config/');
+    return apiClient.get('/system/config/');
   },
-
   updateSystemConfig: async (data: any) => {
-    return apiClient.post('/admin/config/update/', data);
+    return apiClient.post('/system/config/update/', data);
   },
-
   getSystemLogs: async (params?: { level?: string; limit?: number }) => {
-    return apiClient.get('/analytics/system/logs/', { params });
+    return apiClient.get('/system/logs/', { params });
   }
 };
 
@@ -222,19 +191,16 @@ export const analyticsApi = {
     return apiClient.get('/analytics/student-progress/my_progress/');
   },
   getProgressChart: async (params?: { period?: string; metric?: string }) => {
-    return apiClient.get('/analytics/student-progress/progress_chart/', params);
+    return apiClient.get('/analytics/student-progress/progress_chart/', { params });
   },
   getMyWeakAreas: async () => {
     return apiClient.get('/analytics/weak-areas/my_weak_areas/');
   },
   getMySessions: async (params?: { start_date?: string; end_date?: string }) => {
-    return apiClient.get('/analytics/study-sessions/my_sessions/', params);
+    return apiClient.get('/analytics/study-sessions/my_sessions/', { params });
   },
-  getStudentSummary: async () => {
-    return apiClient.get('/analytics/student_summary/');
-  },
-  getStudentSummaryById: async (studentId: number) => {
-    return apiClient.get('/analytics/student_summary/', { student_id: studentId });
+  getStudentSummary: async (params?: { student_id?: number }) => {
+    return apiClient.get('/analytics/student_summary/', { params });
   },
   getClassAnalytics: async (classId: number) => {
     return apiClient.get(`/analytics/class_analytics/${classId}/`);
@@ -246,13 +212,13 @@ export const analyticsApi = {
     return apiClient.get('/system/health/');
   },
   getPerformanceTrends: async (params?: { period_type?: string }) => {
-    return apiClient.get('/analytics/student-progress/performance_trends/', params);
+    return apiClient.get('/analytics/student-progress/performance_trends/', { params });
   },
   startStudySession: async (sessionType: string = 'practice') => {
     return apiClient.post('/analytics/study-sessions/', { session_type: sessionType });
   },
   endStudySession: async (sessionId: number) => {
-    return apiClient.patch(`/analytics/study-sessions/${sessionId}/`, { ended_at: new Date().toISOString() });
+    return apiClient.post(`/analytics/study-sessions/${sessionId}/end_session/`);
   },
   updateActiveSession: async (sessionId: number, data: { duration_minutes?: number, questions_attempted?: number, questions_correct?: number, flashcards_reviewed?: number }) => {
     return apiClient.patch(`/analytics/study-sessions/${sessionId}/`, data);
@@ -327,6 +293,14 @@ export const classesApi = {
   deleteResource: async (id: number) => {
     return apiClient.delete(`/class-resources/${id}/`);
   },
+
+  enrollStudents: async (id: number, studentIds: number[]) => {
+    return apiClient.post(`/classes/${id}/enroll_students/`, { student_ids: studentIds });
+  },
+
+  removeStudents: async (id: number, studentIds: number[]) => {
+    return apiClient.post(`/classes/${id}/remove_students/`, { student_ids: studentIds });
+  },
 };
 
 // Questions API methods
@@ -390,6 +364,10 @@ export const homeworkApi = {
   getSubmission: async (submissionId: number) => {
     return apiClient.get(`/submissions/${submissionId}/`);
   },
+
+  gradeSubmission: async (id: number, data: { score: number; feedback: string }) => {
+    return apiClient.post(`/submissions/${id}/grade/`, data);
+  },
 };
 
 // Question Bank API methods
@@ -424,8 +402,8 @@ export const questionBankApi = {
   submitAttempt: async (data: {
     question: number;
     selected_answer: string;
-    time_taken_seconds: number;
-    attempt_type: string;
+    time_spent_seconds: number;
+    context: string;
   }) => {
     return apiClient.post('/questionbank/attempts/', data);
   },
@@ -437,6 +415,10 @@ export const questionBankApi = {
   getAttemptHistory: async (questionId: number) => {
     return apiClient.get(`/questionbank/questions/${questionId}/attempts/`);
   },
+
+  getTopicCounts: async () => {
+    return apiClient.get('/questionbank/questions/topic_counts/');
+  },
 };
 
 // Bluebook Digital SAT API methods
@@ -447,6 +429,14 @@ export const bluebookApi = {
 
   getExam: async (id: number) => {
     return apiClient.get(`/bluebook/exams/${id}/`);
+  },
+
+  createExam: async (data: any) => {
+    return apiClient.post('/bluebook/exams/', data);
+  },
+
+  populateQuestions: async (id: number) => {
+    return apiClient.post(`/bluebook/management/${id}/populate_questions/`);
   },
 
   getExamStructure: async (id: number) => {
@@ -475,6 +465,10 @@ export const bluebookApi = {
 
   getCurrentModule: async (id: number) => {
     return apiClient.get(`/bluebook/attempts/${id}/current_module/`);
+  },
+
+  setModuleQuestions: async (moduleId: number, questionIds: number[]) => {
+    return apiClient.post(`/bluebook/modules/${moduleId}/set_questions/`, { question_ids: questionIds });
   },
 
   submitModule: async (id: number, data: {
@@ -538,12 +532,16 @@ export const mockExamsApi = {
     return apiClient.get(`/mock-exams/${id}/sections/`);
   },
 
+  submitHomework: async (id: number, data: any) => {
+    return apiClient.post(`/homework/${id}/submit/`, data);
+  },
+
   submitSection: async (id: number, data: { section: string; answers: Record<string, string>; time_spent_seconds: number }) => {
     return apiClient.post(`/mock-exams/${id}/submit_section/`, data);
   },
 
-  submitExam: async (id: number) => {
-    return apiClient.post(`/mock-exams/${id}/submit_exam/`);
+  submitExam: async (id: number, data?: any) => {
+    return apiClient.post(`/mock-exams/${id}/submit_exam/`, data);
   },
 
   getMyAttempts: async () => {
@@ -552,6 +550,10 @@ export const mockExamsApi = {
 
   getAttempt: async (id: number) => {
     return apiClient.get(`/mock-exam-attempts/${id}/`);
+  },
+
+  getAttemptReview: async (id: number) => {
+    return apiClient.get(`/mock-exam-attempts/${id}/review/`);
   },
 
   getExamStatistics: async () => {
@@ -650,7 +652,7 @@ export const flashcardsApi = {
 
   updateProgress: async (id: number, data: {
     is_correct: boolean;
-    time_taken_seconds: number;
+    time_spent_seconds: number;
   }) => {
     return apiClient.post(`/flashcards/${id}/progress/`, data);
   },
@@ -711,19 +713,34 @@ export const isAuthenticated = (): boolean => {
 export const handleApiError = (error: unknown): string => {
   if (axios.isAxiosError(error) && error.response?.data) {
     const data = error.response.data;
+    console.log('API Error Data:', data); // Debug log
 
     // Handle field-specific errors
     if (typeof data === 'object' && data !== null) {
       const dataObj = data as Record<string, unknown>;
-      if (typeof dataObj.detail === 'string') {
-        return dataObj.detail;
+
+      // Check specific common error fields
+      if (typeof dataObj.detail === 'string') return dataObj.detail;
+      if (typeof dataObj.error === 'string') return dataObj.error;
+      if (typeof dataObj.message === 'string') return dataObj.message;
+
+      // Handle DRF non_field_errors specifically
+      if (Array.isArray(dataObj.non_field_errors) && dataObj.non_field_errors.length > 0) {
+        return dataObj.non_field_errors[0] as string;
       }
 
-      // Handle validation errors
+      // Handle validation errors - flattened values
       const errors = Object.values(dataObj).flat();
       if (errors.length > 0 && typeof errors[0] === 'string') {
         return errors[0];
       }
+    }
+
+    // Handle string errors (e.g. HTML response or plain text)
+    if (typeof data === 'string') {
+      // If it's HTML, return generic error to avoid rendering HTML source
+      if (data.trim().startsWith('<')) return 'Server Error';
+      return data;
     }
 
     return 'An error occurred';
@@ -749,6 +766,22 @@ export const notificationsApi = {
   },
   getUnreadCount: async () => {
     return apiClient.get('/notifications/unread_count/');
+  },
+};
+
+// Invitations API methods
+export const invitationsApi = {
+  getInvitations: async () => {
+    return apiClient.get('/invitations/');
+  },
+  createInvitation: async (data: { email: string; role: string }) => {
+    return apiClient.post('/invitations/', data);
+  },
+  resendInvitation: async (id: number) => {
+    return apiClient.post(`/invitations/${id}/resend/`);
+  },
+  deleteInvitation: async (id: number) => {
+    return apiClient.delete(`/invitations/${id}/`);
   },
 };
 

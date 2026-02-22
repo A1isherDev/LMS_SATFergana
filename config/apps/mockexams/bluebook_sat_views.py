@@ -8,12 +8,12 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from django.db.models import Q, Count, Avg
 from django.utils import timezone
-from django_filters.rest_framework import DjangoFilterBackend
-
+from apps.questionbank.models import Question
 from apps.mockexams.bluebook_models import (
     BluebookExam, BluebookSection, BluebookModule, 
     BluebookExamAttempt, BluebookQuestionResponse
 )
+from django_filters.rest_framework import DjangoFilterBackend
 from apps.mockexams.bluebook_serializers import (
     BluebookExamSerializer, BluebookSectionSerializer, 
     BluebookModuleSerializer, BluebookExamAttemptSerializer,
@@ -38,7 +38,7 @@ class BluebookExamViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Get exams based on user role."""
         user = self.request.user
-        if user.role in ['TEACHER', 'ADMIN']:
+        if user.role in ['MAIN_TEACHER', 'SUPPORT_TEACHER', 'ADMIN']:
             return BluebookExam.objects.all()
         else:
             return BluebookExam.objects.filter(is_active=True)
@@ -56,7 +56,7 @@ class BluebookExamViewSet(viewsets.ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         """Create a new Digital SAT exam with standard structure."""
-        if request.user.role not in ['TEACHER', 'ADMIN']:
+        if request.user.role not in ['MAIN_TEACHER', 'SUPPORT_TEACHER', 'ADMIN']:
             return Response(
                 {"detail": "Only teachers and admins can create exams"},
                 status=status.HTTP_403_FORBIDDEN
@@ -184,7 +184,7 @@ class BluebookExamAttemptViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Get attempts for current user."""
         user = self.request.user
-        if user.role in ['TEACHER', 'ADMIN']:
+        if user.role in ['MAIN_TEACHER', 'SUPPORT_TEACHER', 'ADMIN']:
             return BluebookExamAttempt.objects.all()
         else:
             return BluebookExamAttempt.objects.filter(student=user)
@@ -536,12 +536,80 @@ class BluebookManagementViewSet(viewsets.ViewSet):
     )
     @action(detail=True, methods=['post'])
     def populate_questions(self, request, pk=None):
-        """Populate exam with questions."""
-        exam = BluebookExam.objects.get(pk=pk)
+        """Populate exam with questions from the Question Bank."""
+        exam = self.get_object()
         
-        # This would implement logic to select appropriate questions
-        # For now, just return success
+        # Get all modules for this exam
+        modules = BluebookModule.objects.filter(section__exam=exam)
+        
+        total_added = 0
+        for module in modules:
+            section_type = module.section.section_type
+            
+            # Map section_type to question_type
+            q_type = 'MATH' if section_type == 'MATH' else 'READING'
+            
+            # Pick a mix of difficulties for baseline, or specific for adaptive
+            # Digital SAT Baseline modules (Module 1) usually have mixed difficulty
+            # Adaptive modules (Module 2) are either all Easy/Med or all Hard
+            
+            queryset = Question.objects.filter(question_type=q_type, is_active=True).order_by('?')
+            
+            # Logic for difficulty mix
+            if module.difficulty_level == 'BASELINE':
+                # baseline: 27 questions for RW, 22 for Math
+                count = 27 if section_type == 'READING_WRITING' else 22
+                selected = queryset[:count]
+            elif module.difficulty_level == 'EASY':
+                selected = queryset.filter(difficulty__lte=2)[:27]
+            else: # HARD
+                selected = queryset.filter(difficulty__gte=3)[:27]
+            
+            module.questions.add(*selected)
+            total_added += selected.count()
+            
         return Response({
-            'message': 'Question population logic to be implemented',
+            'message': f'Successfully populated {total_added} questions across modules',
             'exam_id': exam.id
+        })
+
+
+class BluebookModuleViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for individual Bluebook modules.
+    Allows manual question management by admins.
+    """
+    queryset = BluebookModule.objects.all()
+    serializer_class = BluebookModuleSerializer
+    permission_classes = [IsTeacherOrAdmin]
+
+    @extend_schema(
+        summary="Update module questions",
+        description="Manually set the questions for a specific module.",
+        tags=["Bluebook Digital SAT Management"]
+    )
+    @action(detail=True, methods=['post'])
+    def set_questions(self, request, pk=None):
+        """Set questions for a module."""
+        module = self.get_object()
+        question_ids = request.data.get('question_ids', [])
+        
+        if not isinstance(question_ids, list):
+            return Response(
+                {"detail": "question_ids must be a list"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Verify all questions exist and are active
+        questions = Question.objects.filter(id__in=question_ids, is_active=True)
+        if questions.count() != len(question_ids):
+            return Response(
+                {"detail": "One or more question IDs are invalid or inactive"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        module.questions.set(questions)
+        return Response({
+            'message': f'Successfully set {questions.count()} questions for module {module.id}',
+            'module_id': module.id
         })

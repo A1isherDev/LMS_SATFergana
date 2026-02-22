@@ -18,13 +18,15 @@ from apps.users.serializers import (
     InvitationSerializer,
     InvitationCreateSerializer
 )
-from apps.common.permissions import IsTeacherOrAdmin, IsStudent
+from apps.common.permissions import IsTeacherOrAdmin, IsStudent, IsAdmin
+from apps.common.views import AuditLogMixin
+from apps.common.utils import log_action
 
 User = get_user_model()
 
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for User model.
     Users can view and update their own profile.
@@ -44,7 +46,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if user.is_admin:
             return User.objects.all()
         elif user.is_teacher:
-            # Teachers can see students in their classes
+            # Teachers can see students
             return User.objects.filter(role='STUDENT')
         else:
             # Students can only see themselves
@@ -95,6 +97,38 @@ class UserViewSet(viewsets.ModelViewSet):
             'streak_display': user.get_streak_display(),
             'last_active_date': user.last_active_date
         })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def assign_support_teacher(self, request, pk=None):
+        """Assign this support teacher to a main teacher."""
+        support_teacher = self.get_object()
+        if support_teacher.role != 'SUPPORT_TEACHER':
+            return Response(
+                {"detail": "Only users with SUPPORT_TEACHER role can be assigned to a main teacher"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        main_teacher_id = request.data.get('main_teacher_id')
+        if not main_teacher_id:
+            return Response(
+                {"detail": "main_teacher_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            main_teacher = User.objects.get(id=main_teacher_id, role='MAIN_TEACHER')
+            support_teacher.assigned_main_teacher = main_teacher
+            support_teacher.save()
+            
+            return Response(
+                {"detail": f"Successfully assigned {support_teacher.email} to {main_teacher.email}"},
+                status=status.HTTP_200_OK
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "Main teacher not found or invalid role"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class StudentProfileViewSet(viewsets.ModelViewSet):
@@ -211,6 +245,15 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
+        log_action(
+            user=user,
+            action='CREATE',
+            resource_type='User',
+            resource_id=user.id,
+            description=f"User registered with email {user.email}",
+            request=request
+        )
+        
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         
@@ -254,6 +297,15 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         
+        log_action(
+            user=user,
+            action='LOGIN',
+            resource_type='User',
+            resource_id=user.id,
+            description=f"User {user.email} logged in",
+            request=request
+        )
+        
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         
@@ -266,12 +318,12 @@ class LoginView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-class InvitationViewSet(viewsets.ModelViewSet):
+class InvitationViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for Invitation model.
-    Teachers and Admins can create invitations.
+    Only Admins can create and manage invitations.
     """
-    permission_classes = [IsTeacherOrAdmin]
+    permission_classes = [IsAdmin]
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""

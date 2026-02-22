@@ -23,10 +23,10 @@ export default function NotificationBell() {
     };
 
     return (
-        <Link href="/notifications" className="relative p-2 text-gray-400 hover:text-blue-600 transition-colors">
-            <Bell className="h-6 w-6" />
+        <Link href="/notifications" className="relative p-3 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all hover:scale-110 active:scale-95 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-gray-700 group">
+            <Bell className="h-5 w-5 group-hover:rotate-12 transition-transform" />
             {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white">
+                <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-xl bg-red-500 text-[10px] font-black text-white border-4 border-white dark:border-gray-800 shadow-lg shadow-red-500/40">
                     {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
             )}

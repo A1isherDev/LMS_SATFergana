@@ -19,10 +19,14 @@ import {
   Trophy,
   Bell,
   Plus,
-  Send
+  Send,
+  ArrowRight,
+  AlertCircle,
+  X
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatDate } from '@/utils/helpers';
+import { formatDate, getSatScoreColor } from '@/utils/helpers';
 import { classesApi } from '@/utils/api';
 import StudentEnrollmentModal from '@/components/StudentEnrollmentModal';
 import LeaderboardTable from '@/components/LeaderboardTable';
@@ -120,30 +124,21 @@ export default function ClassDetailPage() {
   };
 
   const handleRemoveStudent = async (studentId: number) => {
-    if (!confirm('Are you sure you want to remove this student from the class?')) {
+    if (!window.confirm('Are you sure you want to remove this student from the class?')) {
       return;
     }
 
+    const toastId = toast.loading('Removing student...');
     try {
-      await fetch(`/api/classes/${classId}/remove_students/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ student_ids: [studentId] }),
-      });
-
-      alert('Student removed successfully');
-      if (classDetail) {
-        setClassDetail({
-          ...classDetail,
-          students: classDetail.students.filter(s => s.id !== studentId)
-        });
-      }
+      await classesApi.removeStudents(parseInt(classId), [studentId]);
+      toast.success('Student removed successfully', { id: toastId });
+      setClassDetail(prev => prev ? {
+        ...prev,
+        students: prev.students.filter(s => s.id !== studentId)
+      } : null);
     } catch (error) {
       console.error('Error removing student:', error);
-      alert('Error removing student. Please try again.');
+      toast.error('Error removing student. Please try again.', { id: toastId });
     }
   };
 
@@ -157,12 +152,16 @@ export default function ClassDetailPage() {
 
   const handlePostAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAnnouncement.title || !newAnnouncement.content) return;
+    if (!newAnnouncement.title || !newAnnouncement.content) {
+      toast.error('Announcement title and content cannot be empty.');
+      return;
+    }
 
     setIsPostingAnnouncement(true);
+    const toastId = toast.loading('Posting announcement...');
     try {
-      const response = await classesApi.postAnnouncement(parseInt(classId), newAnnouncement);
-      alert('Announcement posted successfully');
+      await classesApi.postAnnouncement(parseInt(classId), newAnnouncement);
+      toast.success('Announcement posted successfully', { id: toastId });
       setNewAnnouncement({ title: '', content: '' });
       setShowAnnouncementForm(false);
 
@@ -217,94 +216,98 @@ export default function ClassDetailPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="space-y-6">
+        <div className="max-w-7xl mx-auto space-y-12 pb-20">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <div className="flex items-start space-x-6">
               <button
                 onClick={() => router.back()}
-                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-                title="Back to Classes"
+                className="p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-sm text-slate-400 hover:text-blue-600 transition-all hover:scale-110"
+                title="Back to Network"
               >
-                <ArrowLeft className="h-5 w-5 mr-1" />
+                <ArrowLeft className="h-6 w-6" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{classDetail.name}</h1>
-                <p className="text-gray-600 text-sm line-clamp-1">{classDetail.description}</p>
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 block">Instructional Cohort</span>
+                <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{classDetail.name}</h1>
+                <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 max-w-2xl">{classDetail.description}</p>
               </div>
             </div>
-            {user?.role === 'TEACHER' && (
-              <div className="flex flex-wrap gap-2">
+            {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && (
+              <div className="flex flex-wrap gap-4">
                 <button
                   onClick={() => setShowAnnouncementForm(!showAnnouncementForm)}
-                  className="flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium shadow-sm"
+                  className="flex items-center px-8 py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-black uppercase italic tracking-widest text-[9px] hover:scale-105 transition-all shadow-xl"
                 >
                   <Bell className="h-4 w-4 mr-2" />
-                  New Announcement
+                  Broadcast
                 </button>
                 <button
                   onClick={handleEnrollStudent}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shadow-sm"
+                  className="flex items-center px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase italic tracking-widest text-[9px] hover:scale-105 transition-all shadow-xl"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Enroll Student
+                  Enrollment
                 </button>
                 <button
                   onClick={handleCreateHomework}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+                  className="flex items-center px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase italic tracking-widest text-[9px] hover:scale-105 transition-all shadow-xl"
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
-                  Assign Homework
+                  New Task
                 </button>
               </div>
             )}
           </div>
 
           {/* New Announcement Form (Conditionally Rendered) */}
-          {showAnnouncementForm && user?.role === 'TEACHER' && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-amber-100 animate-in slide-in-from-top duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                  <Bell className="h-5 w-5 mr-2 text-amber-500" />
-                  Post New Announcement
-                </h3>
-                <button onClick={() => setShowAnnouncementForm(false)} className="text-gray-400 hover:text-gray-600">
-                  <Plus className="h-5 w-5 rotate-45" />
+          {showAnnouncementForm && (user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && (
+            <div className="bg-white dark:bg-gray-800 p-10 rounded-[2.5rem] shadow-2xl border border-blue-100 dark:border-gray-700 animate-in slide-in-from-top duration-300">
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center">
+                    <Bell className="h-6 w-6 mr-3 text-blue-600" />
+                    Channel Broadcast
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">Disseminate critical information to the cohort</p>
+                </div>
+                <button onClick={() => setShowAnnouncementForm(false)} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-full text-slate-400 hover:text-slate-900">
+                  <Plus className="h-6 w-6 rotate-45" />
                 </button>
               </div>
-              <form onSubmit={handlePostAnnouncement} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Announcement Title</label>
+              <form onSubmit={handlePostAnnouncement} className="space-y-8">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Subject Heading</label>
                   <input
                     type="text"
                     required
                     value={newAnnouncement.title}
                     onChange={(e) => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                    placeholder="e.g., Exam Date Changed"
+                    className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-900 border-none rounded-[1.5rem] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-900 dark:text-white"
+                    placeholder="Brief objective..."
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Message Content</label>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Message Specification</label>
                   <textarea
                     required
                     rows={4}
                     value={newAnnouncement.content}
                     onChange={(e) => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                    placeholder="Type your message to the class here..."
+                    className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-900 border-none rounded-[1.5rem] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-900 dark:text-white"
+                    placeholder="Enter comprehensive announcement details..."
                   />
                 </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
                     disabled={isPostingAnnouncement}
-                    className="flex items-center px-6 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-colors font-semibold"
+                    className="flex items-center px-12 py-5 bg-blue-600 text-white rounded-[1.5rem] font-black uppercase italic tracking-widest text-xs hover:scale-105 disabled:opacity-50 transition-all shadow-2xl shadow-blue-500/20"
                   >
-                    {isPostingAnnouncement ? 'Posting...' : (
+                    {isPostingAnnouncement ? 'Syncing...' : (
                       <>
-                        <Send className="h-4 w-4 mr-2" />
-                        Post Announcement
+                        <Send className="h-4 w-4 mr-3" />
+                        Execute Broadcast
                       </>
                     )}
                   </button>
@@ -314,52 +317,52 @@ export default function ClassDetailPage() {
           )}
 
           {/* Class Info Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
-              <div className="p-3 bg-blue-50 rounded-xl mr-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 flex items-center group hover:border-blue-400 transition-all">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-3xl mr-6 group-hover:scale-110 transition-transform">
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 font-medium">Students</p>
-                <p className="text-xl font-black text-gray-900">{classDetail.students.length}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Active Peers</p>
+                <p className="text-3xl font-black italic text-slate-900 dark:text-white tracking-tighter">{classDetail.students.length}</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
-              <div className="p-3 bg-green-50 rounded-xl mr-4">
-                <BookOpen className="h-6 w-6 text-green-600" />
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 flex items-center group hover:border-emerald-400 transition-all">
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-3xl mr-6 group-hover:scale-110 transition-transform">
+                <BookOpen className="h-6 w-6 text-emerald-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 font-medium">Homework</p>
-                <p className="text-xl font-black text-gray-900">{classDetail.homework.length}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Tasks Assigned</p>
+                <p className="text-3xl font-black italic text-slate-900 dark:text-white tracking-tighter">{classDetail.homework.length}</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
-              <div className="p-3 bg-purple-50 rounded-xl mr-4">
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 flex items-center group hover:border-purple-400 transition-all">
+              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-3xl mr-6 group-hover:scale-110 transition-transform">
                 <Target className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 font-medium">Avg SAT</p>
-                <p className="text-xl font-black text-gray-900">{classDetail.class_stats.average_sat_score}</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Mastery Avg</p>
+                <p className="text-3xl font-black italic text-slate-900 dark:text-white tracking-tighter">{classDetail.class_stats.average_sat_score}</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center">
-              <div className="p-3 bg-orange-50 rounded-xl mr-4">
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 flex items-center group hover:border-orange-400 transition-all">
+              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-3xl mr-6 group-hover:scale-110 transition-transform">
                 <TrendingUp className="h-6 w-6 text-orange-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 font-medium">Completion</p>
-                <p className="text-xl font-black text-gray-900">{classDetail.class_stats.average_completion_rate}%</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Velocity</p>
+                <p className="text-3xl font-black italic text-slate-900 dark:text-white tracking-tighter">{classDetail.class_stats.average_completion_rate}%</p>
               </div>
             </div>
           </div>
 
           {/* Tabs Nav */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="border-b border-gray-100 overflow-x-auto">
-              <nav className="flex whitespace-nowrap px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+            <div className="border-b border-slate-50 dark:border-gray-700 overflow-x-auto">
+              <nav className="flex whitespace-nowrap px-8">
                 {[
                   { id: 'overview', label: 'Overview', icon: BarChart3 },
                   { id: 'students', label: 'Students', icon: Users },
@@ -370,12 +373,12 @@ export default function ClassDetailPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as 'overview' | 'students' | 'homework' | 'leaderboard' | 'analytics')}
-                    className={`flex items-center py-5 px-6 font-bold text-sm transition-all border-b-2 ${activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                    className={`flex items-center py-6 px-10 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === tab.id
+                      ? 'border-blue-600 text-blue-600 bg-blue-50/20 italic'
+                      : 'border-transparent text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                   >
-                    <tab.icon className="h-4 w-4 mr-2" />
+                    <tab.icon className={`h-4 w-4 mr-3 ${activeTab === tab.id ? 'text-blue-600' : 'text-slate-300'}`} />
                     {tab.label}
                   </button>
                 ))}
@@ -385,81 +388,88 @@ export default function ClassDetailPage() {
             <div className="p-8">
               {/* Overview Tab with Announcements Integrated */}
               {activeTab === 'overview' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-2 space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                  <div className="lg:col-span-2 space-y-10">
                     {/* Announcements Section */}
                     <section>
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                        <Bell className="h-5 w-5 mr-3 text-blue-600" />
-                        Class Announcements
-                      </h3>
-                      <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center">
+                          <Bell className="h-5 w-5 mr-3 text-blue-600" />
+                          Bulletin Protocol
+                        </h3>
+                      </div>
+                      <div className="space-y-6">
                         {classDetail.announcements && classDetail.announcements.length > 0 ? (
                           classDetail.announcements.map((announcement) => (
-                            <div key={announcement.id} className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-blue-200 transition-all">
-                              <h4 className="font-bold text-gray-900 mb-2">{announcement.title}</h4>
-                              <p className="text-gray-600 text-sm mb-4 line-clamp-3 md:line-clamp-none whitespace-pre-wrap">
+                            <div key={announcement.id} className="p-8 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:border-blue-400 transition-all group">
+                              <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase italic mb-4 leading-tight">{announcement.title}</h4>
+                              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-8 whitespace-pre-wrap leading-relaxed">
                                 {announcement.content}
                               </p>
-                              <div className="flex items-center justify-between text-xs font-medium text-gray-400 border-t border-gray-50 pt-4">
+                              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-6">
                                 <span className="flex items-center">
-                                  <Users className="h-3 w-3 mr-1" />
-                                  By {announcement.teacher_name}
+                                  <Users className="h-3 w-3 mr-2 text-blue-500" />
+                                  AUTHOR: {announcement.teacher_name}
                                 </span>
                                 <span className="flex items-center">
-                                  <Calendar className="h-3 w-3 mr-1" />
-                                  {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
+                                  <Calendar className="h-3 w-3 mr-2 text-slate-300" />
+                                  RELEASED {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
                                 </span>
                               </div>
                             </div>
                           ))
                         ) : (
-                          <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                            <Bell className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500 font-medium italic">No announcements yet for this class.</p>
+                          <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/40 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+                            <Bell className="h-10 w-10 text-slate-200 mx-auto mb-4" />
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic tracking-wider">Zero announcements detected in this sector.</p>
                           </div>
                         )}
                       </div>
                     </section>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="space-y-8">
                     {/* Class Context Info */}
-                    <div className="p-6 bg-slate-900 rounded-2xl text-white shadow-xl">
-                      <h3 className="text-lg font-bold mb-4 flex items-center">
-                        <Calendar className="mr-2 h-5 w-5 text-blue-400" />
-                        Course Info
+                    <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-8 opacity-5 scale-150 rotate-12 group-hover:rotate-6 transition-transform">
+                        <Award className="h-32 w-32" />
+                      </div>
+                      <h3 className="text-lg font-black uppercase italic tracking-tighter mb-8 flex items-center relative z-10">
+                        <Calendar className="mr-3 h-5 w-5 text-blue-400" />
+                        Cohort Specs
                       </h3>
-                      <div className="space-y-4">
+                      <div className="space-y-6 relative z-10">
                         <div>
-                          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Primary Teacher</p>
-                          <p className="font-medium">{classDetail.teacher.first_name} {classDetail.teacher.last_name}</p>
-                          <p className="text-slate-500 text-xs">{classDetail.teacher.email}</p>
+                          <p className="text-slate-500 text-[9px] font-black uppercase tracking-widest mb-2">Primary Instructor</p>
+                          <p className="font-black italic text-lg uppercase tracking-tight">{classDetail.teacher.first_name} {classDetail.teacher.last_name}</p>
+                          <p className="text-blue-400 text-[10px] font-bold mt-1">{classDetail.teacher.email}</p>
                         </div>
-                        <div className="pt-4 border-t border-slate-800">
-                          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Term Duration</p>
-                          <p className="font-medium">{formatDate(classDetail.start_date)} — {formatDate(classDetail.end_date)}</p>
+                        <div className="pt-6 border-t border-white/5">
+                          <p className="text-slate-500 text-[9px] font-black uppercase tracking-widest mb-2">Operation Window</p>
+                          <p className="font-black italic text-sm uppercase tracking-tight">
+                            {formatDate(classDetail.start_date)} <span className="text-blue-500">→</span> {formatDate(classDetail.end_date)}
+                          </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-6 bg-blue-600 rounded-2xl text-white shadow-xl">
-                      <h3 className="text-lg font-bold mb-4 flex items-center">
-                        <TrendingUp className="mr-2 h-5 w-5 text-blue-200" />
-                        Class Summary
+                    <div className="p-8 bg-white dark:bg-gray-800 rounded-[2.5rem] border border-slate-100 dark:border-gray-700 shadow-xl group hover:border-blue-400 transition-all">
+                      <h3 className="text-lg font-black uppercase italic tracking-tighter mb-8 flex items-center text-slate-900 dark:text-white">
+                        <TrendingUp className="mr-3 h-5 w-5 text-blue-600" />
+                        Metric Summary
                       </h3>
-                      <ul className="space-y-3 text-sm">
-                        <li className="flex justify-between">
-                          <span className="text-blue-100">Average SAT</span>
-                          <span className="font-black">{classDetail.class_stats.average_sat_score}</span>
+                      <ul className="space-y-6">
+                        <li className="flex justify-between items-end">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mastery Index</span>
+                          <span className={`text-xl font-black italic tracking-tighter ${getSatScoreColor(classDetail.class_stats.average_sat_score)}`}>{classDetail.class_stats.average_sat_score}</span>
                         </li>
-                        <li className="flex justify-between">
-                          <span className="text-blue-100">Study Time</span>
-                          <span className="font-black">{Math.round(classDetail.class_stats.total_study_time / 60)}h</span>
+                        <li className="flex justify-between items-end pb-6 border-b border-slate-50 dark:border-gray-700">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Labor Time</span>
+                          <span className="text-xl font-black italic text-slate-900 dark:text-white tracking-tighter">{Math.round(classDetail.class_stats.total_study_time / 60)}H</span>
                         </li>
-                        <li className="flex justify-between">
-                          <span className="text-blue-100">Enrollment</span>
-                          <span className="font-black">{classDetail.students.length}/{classDetail.max_students}</span>
+                        <li className="flex justify-between items-end">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Utilization</span>
+                          <span className="text-xl font-black italic text-blue-600 tracking-tighter">{classDetail.students.length}/{classDetail.max_students}</span>
                         </li>
                       </ul>
                     </div>
@@ -469,69 +479,79 @@ export default function ClassDetailPage() {
 
               {/* Students Tab */}
               {activeTab === 'students' && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Enrolled Students ({classDetail.students.length})</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                <div className="space-y-8">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Enrolled Personnel</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">TOTAL STRENGTH: {classDetail.students.length} OPERATIVES</p>
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-[2rem] border border-slate-100 dark:border-gray-700 overflow-hidden shadow-sm">
+                    <table className="min-w-full divide-y divide-slate-100 dark:divide-gray-700">
+                      <thead className="bg-slate-50 dark:bg-slate-900/50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SAT Score</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Rate</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Study Streak</th>
-                          {user?.role === 'TEACHER' && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-8 py-5 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Individual Student</th>
+                          <th className="px-8 py-5 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Composite Score</th>
+                          <th className="px-8 py-5 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Task Completion</th>
+                          <th className="px-8 py-5 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Dedication Streak</th>
+                          {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && (
+                            <th className="px-8 py-5 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Control</th>
                           )}
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
                         {classDetail.students.map(student => (
-                          <tr key={student.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div>
-                                {user?.role === 'TEACHER' ? (
-                                  <Link
-                                    href={`/classes/${classId}/students/${student.id}`}
-                                    className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                                  >
-                                    {student.first_name} {student.last_name}
-                                  </Link>
-                                ) : (
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {student.first_name} {student.last_name}
-                                  </div>
-                                )}
-                                <div className="text-sm text-gray-500">{student.email}</div>
+                          <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors group">
+                            <td className="px-8 py-6 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black italic text-xs mr-4">
+                                  {student.first_name[0]}{student.last_name[0]}
+                                </div>
+                                <div>
+                                  {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') ? (
+                                    <Link
+                                      href={`/classes/${classId}/students/${student.id}`}
+                                      className="text-sm font-black text-slate-900 dark:text-white uppercase italic tracking-tight hover:text-blue-600 transition-colors"
+                                    >
+                                      {student.first_name} {student.last_name}
+                                    </Link>
+                                  ) : (
+                                    <div className="text-sm font-black text-slate-900 dark:text-white uppercase italic tracking-tight">
+                                      {student.first_name} {student.last_name}
+                                    </div>
+                                  )}
+                                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{student.email}</div>
+                                </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-8 py-6 whitespace-nowrap">
                               <div className="flex items-center">
-                                <Award className="h-4 w-4 text-yellow-500 mr-2" />
-                                <span className="text-sm text-gray-900">{student.sat_score || 'N/A'}</span>
+                                <Award className={`h-4 w-4 mr-2 ${getSatScoreColor(student.sat_score || 0)}`} />
+                                <span className={`text-lg font-black italic tracking-tighter ${getSatScoreColor(student.sat_score || 0)}`}>{student.sat_score || '---'}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                            <td className="px-8 py-6 whitespace-nowrap">
+                              <div className="flex items-center w-full max-w-[120px]">
+                                <div className="flex-1 bg-slate-100 dark:bg-gray-700 rounded-full h-1.5 mr-4 shadow-inner">
                                   <div
-                                    className="bg-green-600 h-2 rounded-full"
+                                    className="bg-emerald-500 h-1.5 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.3)] transition-all duration-1000"
                                     style={{ width: `${student.homework_completion_rate || 0}%` }}
                                   ></div>
                                 </div>
-                                <span className="text-sm text-gray-900">{student.homework_completion_rate || 0}%</span>
+                                <span className="text-xs font-black italic text-slate-900 dark:text-white">{student.homework_completion_rate || 0}%</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-8 py-6 whitespace-nowrap">
                               <div className="flex items-center">
                                 <Target className="h-4 w-4 text-orange-500 mr-2" />
-                                <span className="text-sm text-gray-900">{student.study_streak || 0} days</span>
+                                <span className="text-xs font-black italic text-slate-900 dark:text-white">{student.study_streak || 0} DAYS</span>
                               </div>
                             </td>
-                            {user?.role === 'TEACHER' && (
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && (
+                              <td className="px-8 py-6 whitespace-nowrap text-sm font-medium">
                                 <button
                                   onClick={() => handleRemoveStudent(student.id)}
-                                  className="text-red-600 hover:text-red-900"
+                                  className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
                                 >
                                   <UserMinus className="h-4 w-4" />
                                 </button>
@@ -547,47 +567,58 @@ export default function ClassDetailPage() {
 
               {/* Homework Tab */}
               {activeTab === 'homework' && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Homework Assignments ({classDetail.homework.length})</h3>
-                  <div className="space-y-4">
+                <div className="space-y-10">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Academic Directives</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">MODULES DEPLOYED: {classDetail.homework.length}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {classDetail.homework.map(hw => (
-                      <div key={hw.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900">{hw.title}</h4>
-                            <p className="text-sm text-gray-600 mt-1">{hw.description}</p>
-                            <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
-                              <div className="flex items-center">
-                                <Calendar className="h-4 w-4 mr-1" />
-                                Due {formatDate(hw.due_date)}
-                              </div>
-                              <div className="flex items-center">
-                                <BookOpen className="h-4 w-4 mr-1" />
-                                {hw.total_questions} questions
-                              </div>
-                              <div className="flex items-center">
-                                <Users className="h-4 w-4 mr-1" />
-                                {hw.submission_count}/{classDetail.students.length} submitted
-                              </div>
-                            </div>
+                      <div key={hw.id} className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-slate-100 dark:border-gray-700 p-8 shadow-sm hover:border-blue-400 transition-all group relative overflow-hidden">
+                        {hw.difficulty_level === 'HARD' && (
+                          <div className="absolute top-0 right-0 w-2 h-full bg-red-500 opacity-50" />
+                        )}
+                        <div className="flex items-start justify-between mb-8">
+                          <div className="p-4 bg-slate-900 dark:bg-gray-700 rounded-3xl text-white group-hover:bg-blue-600 transition-colors">
+                            <BookOpen className="h-6 w-6" />
                           </div>
-                          <div className="ml-4">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${hw.difficulty_level === 'EASY' ? 'bg-green-100 text-green-800' :
-                              hw.difficulty_level === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
-                              {hw.difficulty_level}
-                            </span>
+                          <span className={`px-4 py-2 text-[8px] font-black rounded-full uppercase tracking-widest ${hw.difficulty_level === 'EASY' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' :
+                            hw.difficulty_level === 'MEDIUM' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20' :
+                              'bg-red-50 text-red-600 dark:bg-red-900/20'
+                            }`}>
+                            {hw.difficulty_level} THREAT
+                          </span>
+                        </div>
+                        <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase italic mb-2 tracking-tight">{hw.title}</h4>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium line-clamp-2 mb-8 italic">"{hw.description}"</p>
+
+                        <div className="space-y-4 mb-8">
+                          <div className="flex items-center text-[10px] font-black uppercase tracking-[0.1em] text-slate-400">
+                            <Calendar className="h-4 w-4 mr-3 text-blue-500" />
+                            DUE PROTOCOL: {formatDate(hw.due_date)}
+                          </div>
+                          <div className="flex items-center text-[10px] font-black uppercase tracking-[0.1em] text-slate-400">
+                            <Target className="h-4 w-4 mr-3 text-orange-500" />
+                            {hw.total_questions} QUERIES IDENTIFIED
+                          </div>
+                          <div className="flex items-center text-[10px] font-black uppercase tracking-[0.1em] text-slate-400">
+                            <Users className="h-4 w-4 mr-3 text-purple-500" />
+                            UTILIZATION: {hw.submission_count}/{classDetail.students.length} SUBMITTED
                           </div>
                         </div>
+
                         {hw.average_score && (
-                          <div className="mt-3 pt-3 border-t">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-600">Average Score</span>
-                              <span className="font-medium">{hw.average_score}%</span>
-                            </div>
+                          <div className="pt-6 border-t border-slate-50 dark:border-gray-700 flex justify-between items-end">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mastery Rating</span>
+                            <span className={`text-2xl font-black italic tracking-tighter ${getSatScoreColor(hw.average_score)}`}>{hw.average_score}%</span>
                           </div>
                         )}
+
+                        <button className="w-full mt-8 py-4 bg-slate-50 dark:bg-slate-900 text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+                          Inspect Analytics
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -596,48 +627,74 @@ export default function ClassDetailPage() {
 
               {/* Analytics Tab */}
               {activeTab === 'analytics' && (
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Class Analytics</h3>
+                <div className="space-y-10">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Cohort Intelligence</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">REAL-TIME PERFORMANCE TELEMETRY</p>
+                    </div>
+                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-gray-50 rounded-lg p-6">
-                      <h4 className="font-medium text-gray-900 mb-4">Performance Overview</h4>
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Average SAT Score</span>
-                          <span className="font-medium">{classDetail.class_stats.average_sat_score}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-slate-100 dark:border-gray-700 p-10 shadow-sm relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-8 opacity-5 scale-150 rotate-12 transition-transform">
+                        <BarChart3 className="h-48 w-48 text-blue-600" />
+                      </div>
+                      <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase italic mb-10 tracking-tight flex items-center relative z-10">
+                        <TrendingUp className="h-5 w-5 mr-3 text-blue-600" />
+                        Operation Metrics
+                      </h4>
+                      <div className="space-y-8 relative z-10">
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mastery Index</span>
+                          <span className={`text-2xl font-black italic tracking-tighter ${getSatScoreColor(classDetail.class_stats.average_sat_score)}`}>{classDetail.class_stats.average_sat_score}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Homework Completion</span>
-                          <span className="font-medium">{classDetail.class_stats.average_completion_rate}%</span>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Task Saturation</span>
+                          <span className="text-2xl font-black italic text-emerald-500 tracking-tighter">{classDetail.class_stats.average_completion_rate}%</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Total Study Time</span>
-                          <span className="font-medium">{Math.round(classDetail.class_stats.total_study_time / 60)} hours</span>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Labor Capacity</span>
+                          <span className="text-2xl font-black italic text-slate-900 dark:text-white tracking-tighter">{Math.round(classDetail.class_stats.total_study_time / 60)}H</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Active Students</span>
-                          <span className="font-medium">{classDetail.class_stats.active_students}</span>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enrolled Operatives</span>
+                          <span className="text-2xl font-black italic text-blue-600 tracking-tighter">{classDetail.class_stats.active_students}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-lg p-6">
-                      <h4 className="font-medium text-gray-900 mb-4">Top Performers</h4>
-                      <div className="space-y-3">
+                    <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] border border-slate-100 dark:border-gray-700 p-10 shadow-sm relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-8 opacity-5 scale-150 -rotate-12 transition-transform">
+                        <Trophy className="h-48 w-48 text-amber-500" />
+                      </div>
+                      <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase italic mb-10 tracking-tight flex items-center relative z-10">
+                        <Trophy className="h-5 w-5 mr-3 text-amber-500" />
+                        Elite Operatives
+                      </h4>
+                      <div className="space-y-8 relative z-10">
                         {classDetail.students
                           .sort((a, b) => (b.sat_score || 0) - (a.sat_score || 0))
                           .slice(0, 3)
                           .map((student, index) => (
-                            <div key={student.id} className="flex items-center justify-between">
+                            <div key={student.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                               <div className="flex items-center">
-                                <span className="text-lg font-bold text-gray-400 mr-3">#{index + 1}</span>
-                                <span className="text-sm font-medium">{student.first_name} {student.last_name}</span>
+                                <span className={`text-xl font-black italic mr-5 ${index === 0 ? 'text-amber-500' : index === 1 ? 'text-slate-400' : 'text-amber-700'}`}>0{index + 1}</span>
+                                <div className="h-8 w-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black italic text-[10px] mr-4 shadow-lg shadow-blue-500/20">
+                                  {student.first_name[0]}{student.last_name[0]}
+                                </div>
+                                <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">{student.first_name} {student.last_name}</span>
                               </div>
-                              <span className="text-sm font-medium">{student.sat_score || 'N/A'}</span>
+                              <span className={`text-xl font-black italic tracking-tighter ${getSatScoreColor(student.sat_score || 0)}`}>{student.sat_score || '---'}</span>
                             </div>
                           ))}
                       </div>
+                      <button
+                        onClick={() => setActiveTab('leaderboard')}
+                        className="w-full mt-10 py-4 bg-slate-900 dark:bg-gray-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest italic hover:bg-blue-600 transition-all flex items-center justify-center group"
+                      >
+                        View Full Leaderboard <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-2 transition-transform" />
+                      </button>
                     </div>
                   </div>
                 </div>

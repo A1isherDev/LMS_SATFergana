@@ -4,10 +4,10 @@ Models for the notifications app.
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from apps.common.models import TimestampedModel
+from apps.common.models import TimestampedModel, TenantModel
 
 
-class Notification(TimestampedModel):
+class Notification(TenantModel):
     """
     Model for tracking in-app notifications.
     """
@@ -38,13 +38,22 @@ class Notification(TimestampedModel):
     
     is_read = models.BooleanField(default=False, db_index=True)
     
-    class Meta:
+    class Meta(TenantModel.Meta):
         db_table = 'notifications'
-        indexes = [
+        indexes = TenantModel.Meta.indexes + [
             models.Index(fields=['recipient', 'is_read']),
             models.Index(fields=['recipient', 'created_at']),
         ]
         ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Notification for {self.recipient.email}: {self.verb}"
+    
+    def mark_as_read(self):
+        """Mark notification as read."""
+        if not self.is_read:
+            self.is_read = True
+            self.save(update_fields=['is_read'])
     
     def __str__(self):
         return f"Notification for {self.recipient.email}: {self.verb}"

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import AuthGuard from '../../components/AuthGuard';
-import DashboardLayout from '../../components/DashboardLayout';
+import AuthGuard from '@/components/AuthGuard';
+import DashboardLayout from '@/components/DashboardLayout';
 import {
   Brain,
   CheckCircle,
@@ -13,13 +13,20 @@ import {
   Play,
   Star,
   ArrowLeft,
-  Repeat
+  Repeat,
+  Zap,
+  Sparkles,
+  ArrowRight,
+  Target,
+  Trophy,
+  Plus
 } from 'lucide-react';
-import { formatDate, getSubjectColor } from '../../utils/helpers';
-import { flashcardsApi } from '../../utils/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { formatDate, getSubjectColor } from '@/utils/helpers';
+import { flashcardsApi } from '@/utils/api';
+import { useAuth } from '@/contexts/AuthContext';
 
-import { Flashcard, FlashcardProgress, ApiResponse } from '../../types';
+import { useSearchParams } from 'next/navigation';
+import { Flashcard, FlashcardProgress, ApiResponse } from '@/types';
 
 interface ReviewSession {
   id: number;
@@ -34,13 +41,18 @@ interface ReviewSession {
 
 export default function FlashcardsPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const subjectParam = searchParams.get('subject');
+
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [progress, setProgress] = useState<FlashcardProgress[]>([]);
   const [currentSession, setCurrentSession] = useState<ReviewSession | null>(null);
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterSubject, setFilterSubject] = useState<string>('all');
+  const [filterSubject, setFilterSubject] = useState<string>(
+    subjectParam ? subjectParam.toUpperCase() : 'all'
+  );
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
@@ -65,7 +77,6 @@ export default function FlashcardsPage() {
       setFlashcards(flashcardsResponse.results);
       setProgress(progressResponse.results);
     } catch (error) {
-      console.error('Error loading flashcards:', error);
       setFlashcards([]);
       setProgress([]);
     } finally {
@@ -77,10 +88,9 @@ export default function FlashcardsPage() {
     try {
       await flashcardsApi.updateProgress(flashcardId, {
         is_correct: isMastered,
-        time_taken_seconds: 5
+        time_spent_seconds: 5
       });
 
-      // Update local state
       setProgress(prev => {
         const existing = prev.find(p => p.flashcard === flashcardId);
         if (existing) {
@@ -111,36 +121,34 @@ export default function FlashcardsPage() {
           }];
         }
       });
-    } catch (error) {
-      console.error('Error updating card progress:', error);
-    }
+    } catch (error) { }
   };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'EASY':
-        return 'bg-green-100 text-green-800';
+        return 'bg-emerald-100/10 text-emerald-500';
       case 'MEDIUM':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-blue-100/10 text-blue-500';
       case 'HARD':
-        return 'bg-red-100 text-red-800';
+        return 'bg-rose-100/10 text-rose-500';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-slate-100/10 text-slate-500';
     }
   };
 
   const getStatusColor = (flashcardId: number) => {
     const cardProgress = progress.find(p => p.flashcard === flashcardId);
-    if (!cardProgress) return 'bg-gray-100 text-gray-800';
-    if (cardProgress.is_mastered) return 'bg-green-100 text-green-800';
-    return 'bg-orange-100 text-orange-800';
+    if (!cardProgress) return 'bg-slate-100/10 text-slate-500';
+    if (cardProgress.is_mastered) return 'bg-emerald-100/10 text-emerald-500';
+    return 'bg-orange-100/10 text-orange-500';
   };
 
   const getStatusText = (flashcardId: number) => {
     const cardProgress = progress.find(p => p.flashcard === flashcardId);
     if (!cardProgress) return 'New';
     if (cardProgress.is_mastered) return 'Mastered';
-    return 'Still Learning';
+    return 'Learning';
   };
 
   const filteredFlashcards = flashcards.filter(card => {
@@ -162,7 +170,7 @@ export default function FlashcardsPage() {
           matchesStatus = status === 'Mastered';
           break;
         case 'learning':
-          matchesStatus = status === 'Still Learning';
+          matchesStatus = status === 'Learning';
           break;
       }
     }
@@ -173,7 +181,7 @@ export default function FlashcardsPage() {
   const startReview = () => {
     const availableCards = filteredFlashcards.filter(card => {
       const status = getStatusText(card.id);
-      return status === 'Still Learning' || status === 'New';
+      return status === 'Learning' || status === 'New';
     });
 
     if (availableCards.length > 0) {
@@ -199,23 +207,15 @@ export default function FlashcardsPage() {
 
   const handleSwipeEnd = async (direction: 'left' | 'right') => {
     if (!currentSession) return;
-
     const isMastered = direction === 'right';
-
-    // Update progress
     await updateCardProgress(currentSession.current_card.id, isMastered);
-
-    // Update session stats
     setCurrentSession(prev => prev ? {
       ...prev,
       cards_reviewed: prev.cards_reviewed + 1,
       mastered_count: prev.mastered_count + (isMastered ? 1 : 0),
       still_learning_count: prev.still_learning_count + (isMastered ? 0 : 1)
     } : null);
-
-    // Trigger swipe animation
     setSwipeDirection(direction);
-
     setTimeout(() => {
       setSwipeDirection(null);
       moveToNextCard();
@@ -224,15 +224,11 @@ export default function FlashcardsPage() {
 
   const moveToNextCard = () => {
     if (!currentSession) return;
-
     const currentIndex = currentSession.remaining_cards.findIndex(
       card => card.id === currentSession.current_card.id
     );
-
     const nextCards = currentSession.remaining_cards.slice(currentIndex + 1);
-
     if (nextCards.length === 0) {
-      // End of review session
       endReview();
     } else {
       const nextCard = nextCards[0];
@@ -247,108 +243,42 @@ export default function FlashcardsPage() {
   const endReview = () => {
     setIsReviewMode(false);
     setCurrentSession(null);
-    loadFlashcards(); // Reload to get updated progress
+    loadFlashcards();
   };
 
-  // Touch event handlers for swipe
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart({
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY
-    });
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStart) return;
-
-    setTouchCurrent({
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY
-    });
-  };
-
+  // Swipe interaction logic simplified for premium feel
+  const handleTouchStart = (e: React.TouchEvent) => setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  const handleTouchMove = (e: React.TouchEvent) => touchStart && setTouchCurrent({ x: e.touches[0].clientX, y: e.touches[0].clientY });
   const handleTouchEnd = () => {
     if (!touchStart || !touchCurrent) return;
-
     const deltaX = touchCurrent.x - touchStart.x;
-    const deltaY = Math.abs(touchCurrent.y - touchStart.y);
-
-    // Only trigger swipe if horizontal movement is greater than vertical
-    if (Math.abs(deltaX) > 100 && Math.abs(deltaX) > deltaY) {
-      if (deltaX > 0) {
-        handleSwipeEnd('right'); // Swipe right = Mastered
-      } else {
-        handleSwipeEnd('left'); // Swipe left = Still Learning
-      }
-    }
-
-    setTouchStart(null);
-    setTouchCurrent(null);
+    if (Math.abs(deltaX) > 120) handleSwipeEnd(deltaX > 0 ? 'right' : 'left');
+    setTouchStart(null); setTouchCurrent(null);
   };
-
-  // Mouse event handlers for swipe (desktop)
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setTouchStart({
-      x: e.clientX,
-      y: e.clientY
-    });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!touchStart) return;
-
-    setTouchCurrent({
-      x: e.clientX,
-      y: e.clientY
-    });
-  };
-
+  const handleMouseDown = (e: React.MouseEvent) => setTouchStart({ x: e.clientX, y: e.clientY });
+  const handleMouseMove = (e: React.MouseEvent) => touchStart && setTouchCurrent({ x: e.clientX, y: e.clientY });
   const handleMouseUp = () => {
     if (!touchStart || !touchCurrent) return;
-
     const deltaX = touchCurrent.x - touchStart.x;
-    const deltaY = Math.abs(touchCurrent.y - touchStart.y);
-
-    if (Math.abs(deltaX) > 100 && Math.abs(deltaX) > deltaY) {
-      if (deltaX > 0) {
-        handleSwipeEnd('right');
-      } else {
-        handleSwipeEnd('left');
-      }
-    }
-
-    setTouchStart(null);
-    setTouchCurrent(null);
+    if (Math.abs(deltaX) > 120) handleSwipeEnd(deltaX > 0 ? 'right' : 'left');
+    setTouchStart(null); setTouchCurrent(null);
   };
 
   const getCardTransform = () => {
     if (!touchStart || !touchCurrent) return 'translateX(0) rotate(0deg)';
-
     const deltaX = touchCurrent.x - touchStart.x;
-    const rotation = deltaX / 20;
-
-    return `translateX(${deltaX}px) rotate(${rotation}deg)`;
-  };
-
-  const getCardOpacity = () => {
-    if (!touchStart || !touchCurrent) return 1;
-
-    const deltaX = Math.abs(touchCurrent.x - touchStart.x);
-    return Math.max(0.5, 1 - deltaX / 500);
+    return `translateX(${deltaX}px) rotate(${deltaX / 15}deg)`;
   };
 
   if (isLoading) {
     return (
       <AuthGuard>
         <DashboardLayout>
-          <div className="animate-pulse">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="animate-pulse space-y-8">
+            <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-2xl w-48"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                </div>
+                <div key={i} className="h-64 bg-slate-200 dark:bg-slate-800 rounded-[2.5rem]"></div>
               ))}
             </div>
           </div>
@@ -358,91 +288,52 @@ export default function FlashcardsPage() {
   }
 
   if (isReviewMode && currentSession) {
-    const currentIndex = currentSession.remaining_cards.findIndex(
-      card => card.id === currentSession.current_card.id
-    );
+    const currentIndex = currentSession.remaining_cards.findIndex(card => card.id === currentSession.current_card.id);
     const totalCards = currentSession.remaining_cards.length;
 
     return (
       <AuthGuard>
         <DashboardLayout>
-          <div className="max-w-4xl mx-auto">
-            {/* Review Header */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="flex items-center justify-between mb-6">
-                <button
-                  onClick={endReview}
-                  className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <ArrowLeft className="h-5 w-5 mr-2" />
-                  <span className="font-medium">End Review</span>
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* Review Header Stats */}
+            <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-10 opacity-5">
+                <Brain className="h-40 w-40" />
+              </div>
+              <div className="relative z-10 flex items-center justify-between mb-10">
+                <button onClick={endReview} className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all">
+                  <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                  Terminate Session
                 </button>
-
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-gray-900">
-                    {currentIndex + 1} / {totalCards}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Total Cards</p>
+                <div className="text-right">
+                  <p className="text-4xl font-black italic tracking-tighter text-blue-400">{currentIndex + 1} <span className="text-slate-600">/</span> {totalCards}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Sequence Index</p>
                 </div>
-
-                <div className="w-24"></div> {/* Spacer for alignment */}
               </div>
 
               <div className="grid grid-cols-3 gap-4">
-                <div className="bg-red-50 rounded-lg p-4 text-center border-2 border-red-200">
-                  <div className="flex items-center justify-center mb-2">
-                    <XCircle className="h-5 w-5 text-red-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-red-600">
-                    {currentSession.still_learning_count}
-                  </p>
-                  <p className="text-xs text-red-700 font-medium mt-1">Still Learning</p>
+                <div className="bg-white/5 border border-white/5 rounded-3xl p-6 text-center">
+                  <p className="text-2xl font-black italic text-rose-500">{currentSession.still_learning_count}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">Struggling</p>
                 </div>
-
-                <div className="bg-blue-50 rounded-lg p-4 text-center border-2 border-blue-200">
-                  <div className="flex items-center justify-center mb-2">
-                    <Repeat className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {currentSession.cards_reviewed}
-                  </p>
-                  <p className="text-xs text-blue-700 font-medium mt-1">Reviewed</p>
+                <div className="bg-white/5 border border-white/5 rounded-3xl p-6 text-center">
+                  <p className="text-2xl font-black italic text-blue-500">{currentSession.cards_reviewed}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">Processed</p>
                 </div>
-
-                <div className="bg-green-50 rounded-lg p-4 text-center border-2 border-green-200">
-                  <div className="flex items-center justify-center mb-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-green-600">
-                    {currentSession.mastered_count}
-                  </p>
-                  <p className="text-xs text-green-700 font-medium mt-1">Mastered</p>
+                <div className="bg-white/5 border border-white/5 rounded-3xl p-6 text-center">
+                  <p className="text-2xl font-black italic text-emerald-500">{currentSession.mastered_count}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">Mastered</p>
                 </div>
               </div>
             </div>
 
-            {/* Swipe Instruction */}
-            <div className="flex items-center justify-between mb-4 px-4">
-              <div className="flex items-center text-red-600">
-                <ArrowLeft className="h-5 w-5 mr-2" />
-                <span className="text-sm font-medium">Swipe left: Still Learning</span>
-              </div>
-              <div className="flex items-center text-green-600">
-                <span className="text-sm font-medium">Swipe right: Mastered</span>
-                <ArrowLeft className="h-5 w-5 ml-2 transform rotate-180" />
-              </div>
-            </div>
-
-            {/* Flashcard */}
+            {/* Flashcard Component */}
             <div
               ref={cardRef}
-              className={`bg-white rounded-2xl shadow-xl cursor-pointer select-none transition-all duration-300 ${swipeDirection === 'left' ? 'opacity-0 -translate-x-full' :
-                swipeDirection === 'right' ? 'opacity-0 translate-x-full' : ''
+              className={`bg-white dark:bg-gray-800 rounded-[3rem] shadow-sm cursor-pointer select-none transition-all duration-300 relative ${swipeDirection === 'left' ? 'opacity-0 scale-95 -translate-x-full' :
+                swipeDirection === 'right' ? 'opacity-0 scale-95 translate-x-full' : ''
                 }`}
-              style={{
-                transform: swipeDirection ? undefined : getCardTransform(),
-                opacity: swipeDirection ? undefined : getCardOpacity(),
-              }}
+              style={{ transform: swipeDirection ? undefined : getCardTransform() }}
               onClick={flipCard}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
@@ -450,106 +341,75 @@ export default function FlashcardsPage() {
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
-              onMouseLeave={() => {
-                setTouchStart(null);
-                setTouchCurrent(null);
-              }}
+              onMouseLeave={() => { setTouchStart(null); setTouchCurrent(null); }}
             >
-              <div className="p-8 md:p-12">
-                {/* Card Header */}
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getSubjectColor(currentSession.current_card.subject)}`}>
-                      {currentSession.current_card.subject}
-                    </span>
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getDifficultyColor(currentSession.current_card.difficulty)}`}>
-                      {currentSession.current_card.difficulty}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <Brain className="h-4 w-4" />
-                    <span className="font-medium">{getStatusText(currentSession.current_card.id)}</span>
+              <div className="p-16 text-center">
+                <div className="flex items-center justify-between mb-12">
+                  <span className={`px-4 py-1 text-[9px] font-black rounded-lg uppercase tracking-wider ${getSubjectColor(currentSession.current_card.subject)}`}>
+                    {currentSession.current_card.subject}
+                  </span>
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-300 uppercase italic">
+                    <Sparkles className="h-4 w-4" />
+                    Neural Sync: {getStatusText(currentSession.current_card.id)}
                   </div>
                 </div>
 
-                {/* Card Content */}
-                <div className="min-h-[350px] flex flex-col items-center justify-center">
+                <div className="min-h-[300px] flex flex-col items-center justify-center">
                   {!currentSession.show_definition ? (
-                    <div className="text-center">
-                      <div className="mb-6">
-                        <div className="inline-block p-4 bg-blue-50 rounded-full mb-4">
-                          <BookOpen className="h-8 w-8 text-blue-600" />
-                        </div>
+                    <div className="space-y-6">
+                      <div className="h-20 w-20 bg-blue-50 dark:bg-blue-900/20 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-sm">
+                        <Zap className="h-10 w-10 text-blue-600" />
                       </div>
-                      <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                      <h2 className="text-6xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase underline decoration-blue-500/20 underline-offset-8">
                         {currentSession.current_card.word}
                       </h2>
                       {currentSession.current_card.pronunciation && (
-                        <p className="text-xl text-gray-500 mb-6">
-                          {currentSession.current_card.pronunciation}
+                        <p className="text-xl font-medium text-slate-400 font-mono">
+                          [{currentSession.current_card.pronunciation}]
                         </p>
                       )}
-                      <p className="text-gray-400 text-sm">Click card to flip</p>
+                      <p className="text-[10px] font-black text-slate-300 tracking-[0.3em] uppercase pt-12">Interaction Required: Flip</p>
                     </div>
                   ) : (
-                    <div className="text-center w-full">
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center justify-center">
-                          <BookOpen className="h-5 w-5 mr-2 text-blue-600" />
-                          Definition
+                    <div className="w-full space-y-12">
+                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-[2.5rem] p-12 border border-slate-100 dark:border-gray-700">
+                        <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6 flex items-center justify-center gap-2">
+                          <Target className="h-4 w-4" />
+                          Semantic Core
                         </h3>
-                        <p className="text-lg text-gray-700 leading-relaxed mb-6">
+                        <p className="text-2xl font-bold text-slate-700 dark:text-slate-200 leading-relaxed max-w-2xl mx-auto italic">
                           {currentSession.current_card.definition}
                         </p>
-                        <div className="border-t border-blue-200 pt-6">
-                          <h4 className="text-sm font-bold text-gray-900 mb-3">Example Sentence</h4>
-                          <p className="text-gray-600 italic leading-relaxed">
-                            "{currentSession.current_card.example_sentence}"
-                          </p>
-                        </div>
                       </div>
 
-                      <p className="text-gray-400 text-sm">Swipe or click to continue</p>
+                      <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Contextual Application</h4>
+                        <p className="text-lg text-slate-500 italic max-w-xl mx-auto">
+                          &quot;{currentSession.current_card.example_sentence}&quot;
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* Quick Action Buttons (visible only when definition is shown) */}
-                {currentSession.show_definition && (
-                  <div className="flex justify-center space-x-4 mt-8">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSwipeEnd('left');
-                      }}
-                      className="flex items-center px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all transform hover:scale-105 shadow-lg"
-                    >
-                      <XCircle className="h-5 w-5 mr-2" />
-                      Still Learning
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSwipeEnd('right');
-                      }}
-                      className="flex items-center px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
-                    >
-                      <CheckCircle className="h-5 w-5 mr-2" />
-                      Mastered
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Progress Indicator */}
-            <div className="mt-6">
-              <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-blue-600 h-full transition-all duration-300"
-                  style={{ width: `${((currentIndex + 1) / totalCards) * 100}%` }}
-                />
-              </div>
+            {/* Action Bar */}
+            <div className="flex justify-center gap-6 pb-20">
+              <button
+                onClick={(e) => { e.stopPropagation(); handleSwipeEnd('left'); }}
+                className="flex items-center px-12 py-5 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase italic text-xs tracking-widest hover:bg-rose-600 transition-all shadow-xl hover:-translate-y-1"
+              >
+                <XCircle className="h-5 w-5 mr-3" />
+                Still Learning
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleSwipeEnd('right'); }}
+                className="flex items-center px-12 py-5 bg-blue-600 text-white rounded-[1.5rem] font-black uppercase italic text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-xl hover:-translate-y-1"
+              >
+                Mastered
+                <CheckCircle className="h-5 w-5 ml-3" />
+              </button>
             </div>
           </div>
         </DashboardLayout>
@@ -560,164 +420,145 @@ export default function FlashcardsPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="space-y-6">
+        <div className="space-y-12 pb-20">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Flashcards</h1>
-              <p className="text-gray-600">Master SAT vocabulary with spaced repetition</p>
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 block">Spaced Repetition Engine</span>
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Vocabulary Bank</h1>
+              <p className="text-slate-500 dark:text-slate-400 font-medium max-w-2xl mt-2">Activate semantic encoding through high-velocity review cycles.</p>
             </div>
-            <button
-              onClick={startReview}
-              disabled={filteredFlashcards.filter(card => {
-                const status = getStatusText(card.id);
-                return status === 'Still Learning' || status === 'New';
-              }).length === 0}
-              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md font-semibold"
-            >
-              <Play className="h-5 w-5 mr-2" />
-              Start Review
-            </button>
+            <div className="flex items-center gap-4">
+              {['TEACHER', 'ADMIN'].includes(user?.role || '') && (
+                <button
+                  onClick={() => window.location.href = '/flashcards/create'}
+                  className="px-8 py-4 bg-white dark:bg-gray-800 text-slate-900 dark:text-white border border-slate-200 dark:border-gray-700 rounded-2xl font-black uppercase italic text-xs tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-3"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Card
+                </button>
+              )}
+              <button
+                onClick={startReview}
+                disabled={filteredFlashcards.length === 0}
+                className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase italic text-xs tracking-widest hover:bg-blue-500 hover:scale-105 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-3 disabled:opacity-20"
+              >
+                <Play className="h-4 w-4 fill-current" />
+                Pulse Start
+              </button>
+            </div>
           </div>
 
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cards</p>
-                <p className="text-2xl font-black text-gray-900 mt-1">{flashcards.length}</p>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-xl">
-                <BookOpen className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Mastered</p>
-                <p className="text-2xl font-black text-green-600 mt-1">
-                  {progress.filter(p => p.is_mastered).length}
-                </p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-xl">
-                <Star className="h-6 w-6 text-green-600" />
+          {/* New Stats Layout */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] border border-slate-100 dark:border-gray-700 shadow-sm relative overflow-hidden group">
+              <div className="relative z-10">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Neural Library</p>
+                <div className="flex items-end justify-between">
+                  <span className="text-3xl font-black italic text-slate-900 dark:text-white">{flashcards.length}</span>
+                  <BookOpen className="h-8 w-8 text-blue-500/10 group-hover:text-blue-500/30 transition-colors" />
+                </div>
               </div>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Learning</p>
-                <p className="text-2xl font-black text-orange-600 mt-1">
-                  {flashcards.filter(card => getStatusText(card.id) === 'Still Learning').length}
-                </p>
-              </div>
-              <div className="p-3 bg-orange-50 rounded-xl">
-                <Clock className="h-6 w-6 text-orange-600" />
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] border border-slate-100 dark:border-gray-700 shadow-sm">
+              <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-4">Peak Performance</p>
+              <div className="flex items-end justify-between">
+                <span className="text-3xl font-black italic text-slate-900 dark:text-white">{progress.filter(p => p.is_mastered).length}</span>
+                <Trophy className="h-8 w-8 text-emerald-500/20" />
               </div>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">New Cards</p>
-                <p className="text-2xl font-black text-purple-600 mt-1">
-                  {flashcards.filter(card => getStatusText(card.id) === 'New').length}
-                </p>
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] border border-slate-100 dark:border-gray-700 shadow-sm">
+              <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-4">In Transmission</p>
+              <div className="flex items-end justify-between">
+                <span className="text-3xl font-black italic text-slate-900 dark:text-white">{flashcards.filter(c => getStatusText(c.id) === 'Learning').length}</span>
+                <Repeat className="h-8 w-8 text-orange-500/20" />
               </div>
-              <div className="p-3 bg-purple-50 rounded-xl">
-                <Brain className="h-6 w-6 text-purple-600" />
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] border border-slate-100 dark:border-gray-700 shadow-sm">
+              <p className="text-[9px] font-black text-purple-500 uppercase tracking-widest mb-4">Unprocessed</p>
+              <div className="flex items-end justify-between">
+                <span className="text-3xl font-black italic text-slate-900 dark:text-white">{flashcards.filter(c => getStatusText(c.id) === 'New').length}</span>
+                <Zap className="h-8 w-8 text-purple-500/20" />
               </div>
             </div>
           </div>
 
-          {/* Search and Filter */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search flashcards..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <select
-                value={filterSubject}
-                onChange={(e) => setFilterSubject(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Subjects</option>
-                <option value="MATH">Math</option>
-                <option value="READING">Reading</option>
-                <option value="WRITING">Writing</option>
+          {/* Refined Filters */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 space-y-6">
+            <div className="relative w-full">
+              <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Query vocabulary database..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-16 pr-8 py-5 bg-slate-50 dark:bg-slate-900/50 border-none rounded-[1.5rem] focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)} className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-none rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <option value="all">Domain: All</option>
+                <option value="MATH">Math Ops</option>
+                <option value="READING">Reading Lex</option>
+                <option value="WRITING">Writing Syntax</option>
               </select>
-              <select
-                value={filterDifficulty}
-                onChange={(e) => setFilterDifficulty(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Difficulties</option>
-                <option value="EASY">Easy</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HARD">Hard</option>
+              <select value={filterDifficulty} onChange={(e) => setFilterDifficulty(e.target.value)} className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-none rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <option value="all">Gravity: Any</option>
+                <option value="EASY">Low Strain</option>
+                <option value="MEDIUM">Mid Mass</option>
+                <option value="HARD">High Velocity</option>
               </select>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value="new">New</option>
-                <option value="learning">Still Learning</option>
-                <option value="mastered">Mastered</option>
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-none rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <option value="all">Sync Status</option>
+                <option value="new">Unprocessed</option>
+                <option value="learning">Encoding</option>
+                <option value="mastered">Retained</option>
               </select>
             </div>
           </div>
 
           {/* Flashcards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredFlashcards.map((card) => {
               const cardProgress = progress.find(p => p.flashcard === card.id);
               return (
-                <div key={card.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all transform hover:-translate-y-1">
-                  <div className="p-6">
-                    {/* Card Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubjectColor(card.subject)}`}>
-                          {card.subject}
-                        </span>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(card.difficulty)}`}>
-                          {card.difficulty}
-                        </span>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(card.id)}`}>
-                        {getStatusText(card.id)}
+                <div key={card.id} className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 flex flex-col group hover:border-blue-400 transition-all hover:shadow-xl hover:shadow-blue-900/5">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 text-[8px] font-black rounded-md uppercase tracking-wider ${getSubjectColor(card.subject)}`}>
+                        {card.subject}
+                      </span>
+                      <span className={`px-2 py-1 text-[8px] font-black rounded-md uppercase tracking-wider ${getDifficultyColor(card.difficulty)}`}>
+                        {card.difficulty}
                       </span>
                     </div>
+                    <span className={`px-2.5 py-1 text-[8px] font-black rounded-full uppercase tracking-widest ${getStatusColor(card.id)}`}>
+                      {getStatusText(card.id)}
+                    </span>
+                  </div>
 
-                    {/* Card Content */}
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{card.word}</h3>
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">{card.definition}</p>
-                    <p className="text-gray-500 text-xs italic mb-4 line-clamp-2">&quot;{card.example_sentence}&quot;</p>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-4 group-hover:text-blue-600 transition-colors">{card.word}</h3>
+                  <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mb-6 leading-relaxed line-clamp-3">{card.definition}</p>
+                  <p className="text-[11px] font-medium text-slate-400 italic mb-10">&quot;{card.example_sentence}&quot;</p>
 
-                    {/* Progress Info */}
+                  <div className="mt-auto space-y-6">
                     {cardProgress && (
-                      <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                        <div className="flex items-center justify-between text-xs text-gray-600">
-                          <span>Reviewed {cardProgress.repetition_count} times</span>
-                          {!cardProgress.is_mastered && (
-                            <span>Next: {formatDate(cardProgress.next_review_date)}</span>
-                          )}
+                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Repeat className="h-3 w-3 text-slate-300" />
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{cardProgress.repetition_count} Cycles</span>
                         </div>
-                        {cardProgress.is_mastered && (
-                          <div className="flex items-center mt-2 text-green-600">
-                            <Star className="h-3 w-3 mr-1" />
-                            <span className="text-xs font-medium">Mastered</span>
+                        {cardProgress.is_mastered ? (
+                          <div className="flex items-center gap-1 text-emerald-500">
+                            <Trophy className="h-3 w-3" />
+                            <span className="text-[9px] font-black uppercase">Secured</span>
                           </div>
+                        ) : (
+                          <span className="text-[9px] font-black text-slate-400 uppercase">Revise: {formatDate(cardProgress.next_review_date)}</span>
                         )}
                       </div>
                     )}
 
-                    {/* Actions */}
                     <button
                       onClick={() => {
                         setCurrentSession({
@@ -732,9 +573,10 @@ export default function FlashcardsPage() {
                         });
                         setIsReviewMode(true);
                       }}
-                      className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                      className="w-full py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-black uppercase italic text-xs tracking-widest hover:bg-blue-600 hover:scale-[1.02] transition-all flex items-center justify-center group/btn"
                     >
-                      Study Card
+                      Initialize Study
+                      <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
                     </button>
                   </div>
                 </div>
@@ -744,16 +586,12 @@ export default function FlashcardsPage() {
 
           {/* Empty State */}
           {filteredFlashcards.length === 0 && (
-            <div className="text-center py-12">
-              <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <Brain className="h-6 w-6 text-gray-400" />
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-[3rem] py-24 text-center border-2 border-dashed border-slate-200 dark:border-slate-800">
+              <div className="h-16 w-16 bg-white dark:bg-slate-800 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-sm">
+                <Brain className="h-8 w-8 text-slate-300" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No flashcards found</h3>
-              <p className="text-gray-500">
-                {searchTerm || filterSubject !== 'all' || filterDifficulty !== 'all' || filterStatus !== 'all'
-                  ? 'Try adjusting your filters'
-                  : 'Start by adding some flashcards to your collection'}
-              </p>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic mb-2">Neural Records Clean</h3>
+              <p className="text-slate-400 font-medium italic">Adjust semantic target parameters.</p>
             </div>
           )}
         </div>

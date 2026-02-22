@@ -16,6 +16,7 @@ from apps.mockexams.serializers import (
     MockExamAttemptSerializer,
     MockExamAttemptCreateSerializer,
     MockExamAttemptDetailSerializer,
+    MockExamAttemptReviewSerializer,
     MockExamSectionSerializer,
     MockExamSubmissionSerializer,
     MockExamStatsSerializer,
@@ -23,12 +24,13 @@ from apps.mockexams.serializers import (
 )
 from apps.questionbank.serializers import QuestionStudentSerializer
 from apps.common.permissions import IsTeacherOrAdmin, IsStudent
+from apps.common.views import AuditLogMixin
 
 # Import Bluebook views
 from .bluebook_views import ExamAnalyticsViewSet, ExamPerformanceViewSet
 
 
-class MockExamViewSet(viewsets.ModelViewSet):
+class MockExamViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for MockExam model.
     Different access levels for teachers/admins vs students.
@@ -61,13 +63,19 @@ class MockExamViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
+        base_queryset = MockExam.objects.prefetch_related('math_questions', 'reading_questions', 'writing_questions')
         
         if user.is_admin:
-            return MockExam.objects.prefetch_related('math_questions', 'reading_questions', 'writing_questions').all()
+            return base_queryset.all()
+        elif user.is_dept_lead:
+            # Department leads see exams for their department
+            return base_queryset.filter(department=user.department)
         elif user.is_teacher:
-            return MockExam.objects.prefetch_related('math_questions', 'reading_questions', 'writing_questions').all()
+            # Teachers see all (collaborative creation/assignment)
+            return base_queryset.all()
         elif user.is_student:
-            return MockExam.objects.filter(is_active=True).prefetch_related('math_questions', 'reading_questions', 'writing_questions')
+            # Students see only active exams
+            return base_queryset.filter(is_active=True)
         else:
             return MockExam.objects.none()
     
@@ -319,9 +327,14 @@ class MockExamViewSet(viewsets.ModelViewSet):
             MockExamAttemptDetailSerializer(attempt).data,
             status=status.HTTP_200_OK
         )
+    
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        """Alias for submit_exam to maintain compatibility."""
+        return self.submit_exam(request, pk)
 
 
-class MockExamAttemptViewSet(viewsets.ModelViewSet):
+class MockExamAttemptViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for MockExamAttempt model.
     """
@@ -349,15 +362,18 @@ class MockExamAttemptViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
+        base_queryset = MockExamAttempt.objects.select_related('mock_exam', 'student')
         
         if user.is_admin:
-            return MockExamAttempt.objects.select_related('mock_exam', 'student').all()
+            return base_queryset.all()
+        elif user.is_dept_lead:
+            # Department leads see attempts for exams in their department
+            return base_queryset.filter(mock_exam__department=user.department)
         elif user.is_teacher:
-            return MockExamAttempt.objects.select_related('mock_exam', 'student').all()
+            # Teachers see all attempts (collaborative grading)
+            return base_queryset.all()
         elif user.is_student:
-            return MockExamAttempt.objects.filter(
-                student=user
-            ).select_related('mock_exam')
+            return base_queryset.filter(student=user)
         else:
             return MockExamAttempt.objects.none()
     
@@ -383,10 +399,7 @@ class MockExamAttemptViewSet(viewsets.ModelViewSet):
     def my_attempts(self, request):
         """Get current student's mock exam attempts."""
         if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can view their attempts"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+             return Response([], status=status.HTTP_200_OK)
         
         attempts = MockExamAttempt.objects.filter(
             student=request.user
@@ -408,6 +421,28 @@ class MockExamAttemptViewSet(viewsets.ModelViewSet):
             })
         
         serializer = StudentMockExamProgressSerializer(progress_data, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def review(self, request, pk=None):
+        """Get detailed exam attempt review for individual questions."""
+        attempt = self.get_object()
+        
+        # Security check: only allow review of completed exams
+        if not attempt.is_completed:
+            return Response(
+                {"detail": "Attempt must be completed for review"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Security check: students can only review their own attempts
+        if request.user.is_student and attempt.student != request.user:
+            return Response(
+                {"detail": "You can only review your own attempts"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        serializer = MockExamAttemptReviewSerializer(attempt)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])

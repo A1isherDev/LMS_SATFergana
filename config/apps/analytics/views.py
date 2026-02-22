@@ -197,6 +197,24 @@ class StudentProgressViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = StudentProgressSerializer(progress)
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Get performance trends",
+        description="Get performance trends (SAT score, accuracy, mastery) for current student.",
+        tags=["Analytics"],
+        responses={200: PerformanceTrendSerializer}
+    )
+    @action(detail=False, methods=['get'])
+    def performance_trends(self, request):
+        """Get performance trends for current student."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can view their performance trends"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        trends = AnalyticsViewSet._calculate_performance_trends(request.user)
+        return Response(trends)
+
 
 class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -306,207 +324,6 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @extend_schema(
-        summary="Start study session",
-        description="Start a new study session for tracking study time and progress.",
-        tags=["Analytics"],
-        request={
-            'type': 'object',
-            'properties': {
-                'session_type': {
-                    'type': 'string',
-                    'enum': ['PRACTICE', 'HOMEWORK', 'MOCK_EXAM', 'FLASHCARDS'],
-                    'description': 'Type of study session'
-                }
-            }
-        },
-        responses={201: {
-            'type': 'object',
-            'properties': {
-                'session_id': {'type': 'integer'},
-                'session_type': {'type': 'string'},
-                'started_at': {'type': 'string'}
-            }
-        }}
-    )
-    @action(detail=False, methods=['post'])
-    def start_study_session(self, request):
-        """Start a new study session."""
-        try:
-            session_type = request.data.get('session_type', 'practice')
-            
-            # Check if there's already an active session
-            active_session = StudySession.objects.filter(
-                student=request.user,
-                ended_at__isnull=True
-            ).first()
-            
-            if active_session:
-                return Response({
-                    'detail': 'You already have an active study session',
-                    'session_id': active_session.id,
-                    'started_at': active_session.started_at
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Create new study session
-            session = StudySession.objects.create(
-                student=request.user,
-                session_type=session_type,
-                started_at=timezone.now()
-            )
-            
-            return Response({
-                'session_id': session.id,
-                'session_type': session.session_type,
-                'started_at': session.started_at
-            }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            return Response(
-                {"detail": f"Failed to start study session: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    @extend_schema(
-        summary="End study session",
-        description="End the current study session and update study progress.",
-        tags=["Analytics"],
-        request={
-            'type': 'object',
-            'properties': {
-                'session_id': {
-                    'type': 'integer',
-                    'description': 'Specific session ID to end (optional)',
-                    'required': False
-                }
-            }
-        },
-        responses={200: {
-            'type': 'object',
-            'properties': {
-                'session_id': {'type': 'integer'},
-                'duration_minutes': {'type': 'integer'},
-                'session_type': {'type': 'string'},
-                'updated_streak': {'type': 'integer'}
-            }
-        }}
-    )
-    @action(detail=False, methods=['post'])
-    def end_study_session(self, request):
-        """End the current study session."""
-        try:
-            session_id = request.data.get('session_id')
-            
-            if session_id:
-                # End specific session
-                session = StudySession.objects.filter(
-                    id=session_id,
-                    student=request.user,
-                    ended_at__isnull=True
-                ).first()
-            else:
-                # End any active session
-                session = StudySession.objects.filter(
-                    student=request.user,
-                    ended_at__isnull=True
-                ).first()
-            
-            if not session:
-                return Response(
-                    {"detail": "No active study session found"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # Update session
-            session.ended_at = timezone.now()
-            session.duration_minutes = int((session.ended_at - session.started_at).total_seconds() / 60)
-            
-            # Update study progress for today
-            today = timezone.now().date()
-            progress, created = StudentProgress.objects.get_or_create(
-                student=request.user,
-                date=today,
-                defaults={
-                    'study_time_minutes': session.duration_minutes,
-                    'streak_days': 1
-                }
-            )
-            
-            if not created:
-                progress.study_time_minutes += session.duration_minutes
-                progress.save()
-            
-            session.save()
-            
-            # Calculate updated streak
-            updated_streak = calculate_study_streak(
-                StudySession.objects.filter(
-                    student=request.user,
-                    ended_at__isnull=False
-                ).order_by('-started_at')
-            )
-            
-            return Response({
-                'session_id': session.id,
-                'duration_minutes': session.duration_minutes,
-                'session_type': session.session_type,
-                'updated_streak': updated_streak
-            })
-            
-        except Exception as e:
-            return Response(
-                {"detail": f"Failed to end study session: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    @extend_schema(
-        summary="Get active study session",
-        description="Get the currently active study session for the student.",
-        tags=["Analytics"],
-        responses={200: {
-            'type': 'object',
-            'properties': {
-                'session_id': {'type': 'integer'},
-                'session_type': {'type': 'string'},
-                'started_at': {'type': 'string'},
-                'current_duration_minutes': {'type': 'integer'}
-            }
-        }}
-    )
-    @action(detail=False, methods=['get'])
-    def active_session(self, request):
-        """Get the currently active study session."""
-        if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can view their active sessions"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        try:
-            active_session = StudySession.objects.filter(
-                student=request.user,
-                ended_at__isnull=True
-            ).first()
-            
-            if not active_session:
-                return Response({'active_session': None})
-            
-            # Calculate current duration
-            current_duration = int((timezone.now() - active_session.started_at).total_seconds() / 60)
-            
-            return Response({
-                'session_id': active_session.id,
-                'session_type': active_session.session_type,
-                'started_at': active_session.started_at,
-                'current_duration_minutes': current_duration
-            })
-            
-        except Exception as e:
-            return Response(
-                {"detail": f"Failed to get active session: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
     @staticmethod
     def _get_improvement_suggestion(weak_area):
         """Get improvement suggestion for a weak area."""
@@ -535,6 +352,51 @@ class WeakAreaViewSet(viewsets.ReadOnlyModelViewSet):
             weak_area.subcategory,
             'Practice regularly and review fundamentals'
         )
+
+    @extend_schema(
+        summary="Get topic-level analytics",
+        description="Get detailed performance breakdown by topic/skill tag for current student.",
+        tags=["Analytics"],
+        responses={200: TopicAnalyticsSerializer(many=True)}
+    )
+    @action(detail=False, methods=['get'])
+    def topic_analytics(self, request):
+        """Get performance breakdown by topic."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can view their topic analytics"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        from apps.questionbank.models import QuestionAttempt
+        from django.db.models import Count, Q, Avg
+        # Aggregate question attempts by skill_tag
+        attempts = QuestionAttempt.objects.filter(student=request.user)
+        
+        # Group by question type and skill tag
+        stats = attempts.values(
+            'question__question_type', 
+            'question__skill_tag'
+        ).annotate(
+            total_attempts=Count('id'),
+            correct_attempts=Count('id', filter=Q(is_correct=True)),
+            average_time=Avg('time_spent_seconds')
+        ).order_by('-total_attempts')
+        
+        topic_data = []
+        for item in stats:
+            total = item['total_attempts']
+            correct = item['correct_attempts']
+            topic_data.append({
+                'skill_tag': item['question__skill_tag'] or 'Uncategorized',
+                'question_type': item['question__question_type'],
+                'total_attempts': total,
+                'correct_attempts': correct,
+                'accuracy_rate': (correct / total * 100) if total > 0 else 0,
+                'average_time_seconds': item['average_time'] or 0
+            })
+            
+        return Response(topic_data)
 
 
 class StudySessionViewSet(viewsets.ModelViewSet):
@@ -605,6 +467,54 @@ class StudySessionViewSet(viewsets.ModelViewSet):
         
         serializer = StudySessionSerializer(sessions, many=True)
         return Response(serializer.data)
+
+    @extend_schema(
+        summary="Get active study session",
+        description="Get the currently active study session for the student.",
+        tags=["Analytics"],
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'session_id': {'type': 'integer'},
+                'session_type': {'type': 'string'},
+                'started_at': {'type': 'string'},
+                'current_duration_minutes': {'type': 'integer'}
+            }
+        }}
+    )
+    @action(detail=False, methods=['get'])
+    def active_session(self, request):
+        """Get the currently active study session."""
+        if not request.user.is_student:
+            return Response(
+                {"detail": "Only students can view their active sessions"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            active_session = StudySession.objects.filter(
+                student=request.user,
+                ended_at__isnull=True
+            ).first()
+            
+            if not active_session:
+                return Response({'active_session': None})
+            
+            # Calculate current duration
+            current_duration = int((timezone.now() - active_session.started_at).total_seconds() / 60)
+            
+            return Response({
+                'session_id': active_session.id,
+                'session_type': active_session.session_type,
+                'started_at': active_session.started_at,
+                'current_duration_minutes': current_duration
+            })
+            
+        except Exception as e:
+            return Response(
+                {"detail": f"Failed to get active session: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=False, methods=['get'])
     def study_time_analysis(self, request):
@@ -809,49 +719,6 @@ class AnalyticsViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
     
     @extend_schema(
-        summary="Get topic-level analytics",
-        description="Get detailed performance breakdown by topic/skill tag for current student.",
-        tags=["Analytics"],
-        responses={200: TopicAnalyticsSerializer(many=True)}
-    )
-    @action(detail=False, methods=['get'])
-    def topic_analytics(self, request):
-        """Get performance breakdown by topic."""
-        if not request.user.is_student:
-            return Response(
-                {"detail": "Only students can view their topic analytics"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Aggregate question attempts by skill_tag
-        attempts = QuestionAttempt.objects.filter(student=request.user)
-        
-        # Group by question type and skill tag
-        stats = attempts.values(
-            'question__question_type', 
-            'question__skill_tag'
-        ).annotate(
-            total_attempts=Count('id'),
-            correct_attempts=Count('id', filter=Q(is_correct=True)),
-            average_time=Avg('time_spent_seconds')
-        )
-        
-        topic_data = []
-        for s in stats:
-            total = s['total_attempts']
-            correct = s['correct_attempts']
-            topic_data.append({
-                'skill_tag': s['question__skill_tag'],
-                'question_type': s['question__question_type'],
-                'total_attempts': total,
-                'correct_attempts': correct,
-                'accuracy_rate': (correct / total * 100) if total > 0 else 0,
-                'average_time_seconds': s['average_time'] or 0
-            })
-            
-        return Response(topic_data)
-
-    @extend_schema(
         summary="Export analytics to CSV",
         description="Download a CSV file containing the student's progress history.",
         tags=["Analytics"],
@@ -976,17 +843,20 @@ class AnalyticsViewSet(viewsets.GenericViewSet):
                             'sat_score': progress.latest_sat_score
                         })
             
-            # Get class weak areas
-            class_weak_areas = WeakArea.objects.filter(
-                student_id__in=student_ids
-            ).values('area_type', 'subcategory').annotate(
-                avg_weakness=Avg('weakness_score')
-            ).order_by('-avg_weakness')[:5]
+            # Check for assigned homework on these topics for this class
+            from apps.homework.models import Homework
+            assigned_topics = Homework.objects.filter(
+                class_obj=class_obj,
+                is_published=True
+            ).values_list('topic', flat=True)
             
-            weak_areas_list = [
-                f"{area['area_type']} - {area['subcategory']}"
-                for area in class_weak_areas
-            ]
+            weak_areas_list = []
+            for area in class_weak_areas:
+                topic_name = f"{area['area_type']} - {area['subcategory']}"
+                weak_areas_list.append({
+                    'area': topic_name,
+                    'is_assigned': topic_name in assigned_topics
+                })
             
             # Study time stats
             study_time_stats = StudySession.objects.filter(
@@ -1125,11 +995,11 @@ def dashboard_stats(request):
     """
     user = request.user
     
-    if user.role == 'STUDENT':
+    if user.is_student:
         return get_student_dashboard_stats(user)
-    elif user.role == 'TEACHER':
+    elif user.is_teacher:
         return get_teacher_dashboard_stats(user)
-    elif user.role == 'ADMIN':
+    elif user.is_admin:
         return get_admin_dashboard_stats(user)
     
     return Response({'error': 'Invalid user role'}, status=400)
@@ -1178,8 +1048,8 @@ def get_student_dashboard_stats(student):
     
     # Next exam (find most recent upcoming exam)
     next_exam_date = None
-    if hasattr(student, 'studentprofile') and student.studentprofile.sat_exam_date:
-        next_exam_date = student.studentprofile.sat_exam_date
+    if hasattr(student, 'student_profile') and student.student_profile.sat_exam_date:
+        next_exam_date = student.student_profile.sat_exam_date.date().isoformat()
     else:
         # Dynamic fallback: if no date set, suggest common upcoming test dates or 90 days out
         next_exam_date = (now + timedelta(days=90)).date().isoformat()
@@ -1237,9 +1107,9 @@ def get_teacher_dashboard_stats(teacher):
     now = timezone.now()
     
     # Classes taught
-    classes_count = teacher.taught_classes.count()
-    total_students = teacher.taught_classes.aggregate(
-        total=Sum('students__count')
+    classes_count = teacher.teaching_classes.count()
+    total_students = teacher.teaching_classes.aggregate(
+        total=Count('students', distinct=True)
     )['total'] or 0
     
     # Homework assigned
@@ -1259,6 +1129,24 @@ def get_teacher_dashboard_stats(teacher):
         score__isnull=False
     ).aggregate(avg_score=Avg('score'))['avg_score'] or 0
 
+    # Recent submissions to grade (detailed for live feed)
+    recent_submissions_qs = HomeworkSubmission.objects.filter(
+        homework__assigned_by=teacher,
+        submitted_at__isnull=False
+    ).select_related('student', 'homework').order_by('-submitted_at')[:5]
+    
+    recent_submissions = [{
+        'id': s.id,
+        'student_name': s.student.get_full_name() or s.student.email,
+        'student_email': s.student.email,
+        'homework_id': s.homework.id,
+        'homework_title': s.homework.title,
+        'submitted_at': s.submitted_at.isoformat(),
+        'has_file': bool(s.submission_file),
+        'score': s.score,
+        'accuracy': s.accuracy_percentage
+    } for s in recent_submissions_qs]
+
     # Recent classes
     recent_classes_qs = teacher.teaching_classes.filter(is_active=True).order_by('-created_at')[:3]
     recent_classes = [{
@@ -1275,7 +1163,8 @@ def get_teacher_dashboard_stats(teacher):
         'homeworkPublished': homework_published,
         'pendingSubmissions': pending_submissions,
         'averageClassScore': round(avg_class_score, 1),
-        'recentClasses': recent_classes
+        'recentClasses': recent_classes,
+        'recentSubmissions': recent_submissions
     })
 
 
@@ -1286,7 +1175,7 @@ def get_admin_dashboard_stats(admin):
     # Overall stats
     total_users = User.objects.count()
     total_students = User.objects.filter(role='STUDENT').count()
-    total_teachers = User.objects.filter(role='TEACHER').count()
+    total_teachers = User.objects.filter(role__in=['MAIN_TEACHER', 'SUPPORT_TEACHER']).count()
     
     # Content stats
     total_homework = Homework.objects.count()
@@ -1531,17 +1420,14 @@ def system_logs(request):
     for log in logs:
         # Map action_flag to a level/category
         level = 'INFO'
-        if log.is_deletion():
+        if log.action_flag == 3: # DELETION
             level = 'WARNING'
-        elif log.is_addition():
-            level = 'INFO'
-        elif log.is_change():
-            level = 'INFO'
+        # ADDITION (1) and CHANGE (2) stay INFO
             
         formatted_logs.append({
             'id': log.id,
             'level': level,
-            'message': f"{log.user.get_full_name()} {log.get_change_message()} on {log.object_repr}",
+            'message': f"{log.user.email} {log.get_action_flag_display().lower()} {log.object_repr}: {log.change_message or 'No details'}",
             'timestamp': log.action_time.isoformat(),
             'component': log.content_type.model.capitalize() if log.content_type else 'System'
         })
@@ -1554,3 +1440,53 @@ def system_logs(request):
         ]
         
     return Response(formatted_logs)
+
+
+@extend_schema(
+    summary="Get system configuration",
+    description="Get system-wide settings and configuration (admins only).",
+    tags=["Analytics"]
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def system_config(request):
+    """Get system configuration for admin dashboard."""
+    if request.user.role != 'ADMIN':
+        return Response(
+            {"detail": "Only admins can view system configuration"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # In a real app, this might come from a DB model or settings file
+    return Response({
+        'site_name': 'SAT LMS Platform',
+        'maintenance_mode': False,
+        'allow_registration': True,
+        'default_student_role': 'STUDENT',
+        'max_upload_size_mb': 10,
+        'session_timeout_minutes': 60,
+        'smtp_enabled': True,
+        'debug_mode': False,
+    })
+
+
+@extend_schema(
+    summary="Update system configuration",
+    description="Update system-wide settings (admins only).",
+    tags=["Analytics"]
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_system_config(request):
+    """Update system configuration."""
+    if request.user.role != 'ADMIN':
+        return Response(
+            {"detail": "Only admins can update system configuration"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Logic to update settings would go here
+    return Response({
+        'message': 'Configuration updated successfully',
+        'config': request.data
+    })

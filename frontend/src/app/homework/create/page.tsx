@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
-import { 
+import {
   ArrowLeft,
   Save,
   Plus,
@@ -14,8 +14,10 @@ import {
   BookOpen,
   Users
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatDate } from '@/utils/helpers';
+import { homeworkApi, classesApi } from '@/utils/api';
 
 interface Question {
   id: string;
@@ -34,6 +36,7 @@ interface HomeworkFormData {
   due_date: string;
   difficulty_level: 'EASY' | 'MEDIUM' | 'HARD';
   is_published: boolean;
+  topic?: string;
   questions: Question[];
 }
 
@@ -47,15 +50,23 @@ interface Class {
 export default function CreateHomeworkPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const classIdParam = searchParams.get('class_id');
+  const titleParam = searchParams.get('title');
+  const descParam = searchParams.get('description');
+  const topicParam = searchParams.get('topic');
+
   const [isLoading, setIsLoading] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
   const [formData, setFormData] = useState<HomeworkFormData>({
-    title: '',
-    description: '',
-    class_id: 0,
+    title: titleParam || '',
+    description: descParam || '',
+    class_id: classIdParam ? parseInt(classIdParam) : 0,
     due_date: '',
     difficulty_level: 'MEDIUM',
     is_published: false,
+    topic: topicParam || '',
     questions: []
   });
 
@@ -63,19 +74,11 @@ export default function CreateHomeworkPage() {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await fetch('/api/classes/', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setClasses(data.results || data);
-        }
+        const response: any = await classesApi.getClasses();
+        setClasses(response.results || response);
       } catch (error) {
         console.error('Error fetching classes:', error);
+        toast.error('Failed to load classes');
       }
     };
 
@@ -101,7 +104,7 @@ export default function CreateHomeworkPage() {
       explanation: '',
       points: 10
     };
-    
+
     setFormData(prev => ({
       ...prev,
       questions: [...prev.questions, newQuestion]
@@ -111,7 +114,7 @@ export default function CreateHomeworkPage() {
   const updateQuestion = (questionId: string, field: keyof Question, value: any) => {
     setFormData(prev => ({
       ...prev,
-      questions: prev.questions.map(q => 
+      questions: prev.questions.map(q =>
         q.id === questionId ? { ...q, [field]: value } : q
       )
     }));
@@ -127,27 +130,16 @@ export default function CreateHomeworkPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const toastId = toast.loading('Publishing assignment...');
 
     try {
-      const response = await fetch('/api/homework/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        alert('Homework created successfully!');
-        router.push('/homework');
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.detail || 'Failed to create homework'}`);
-      }
-    } catch (error) {
+      await homeworkApi.createHomework(formData);
+      toast.success('Assignment published successfully', { id: toastId });
+      router.push('/homework');
+    } catch (error: any) {
       console.error('Error creating homework:', error);
-      alert('Error creating homework. Please try again.');
+      const message = error.response?.data?.detail || 'Failed to create homework';
+      toast.error(`Error: ${message}`, { id: toastId });
     } finally {
       setIsLoading(false);
     }
@@ -191,7 +183,7 @@ export default function CreateHomeworkPage() {
             {/* Basic Information */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-6">Basic Information</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

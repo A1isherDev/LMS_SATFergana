@@ -5,6 +5,7 @@ import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
 import { adminApi } from '@/utils/api';
 import { User, Search, Filter, MoreVertical, Shield, Trash2, Edit2, CheckCircle, XCircle, Mail } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { formatDate } from '@/utils/helpers';
 import { ApiResponse, User as UserType } from '@/types';
 
@@ -52,13 +53,16 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this user?')) return;
+        if (!window.confirm('Are you sure you want to delete this user?')) return;
+
+        const toastId = toast.loading('Deleting user...');
         try {
             await adminApi.deleteUser(id);
             setUsers(users.filter(u => u.id !== id));
+            toast.success('User deleted successfully', { id: toastId });
         } catch (error) {
             console.error('Error deleting user:', error);
-            alert('Failed to delete user');
+            toast.error('Failed to delete user', { id: toastId });
         }
     };
 

@@ -6,31 +6,37 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { flashcardsApi } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { Save, Loader } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function CreateFlashcardPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
 
-    // Initial state
+    // Initial state matching backend Flashcard model
     const [formData, setFormData] = useState({
         word: '',
         definition: '',
         example_sentence: '',
-        difficulty: 'MEDIUM',
-        subject: 'READING', // Default to reading/vocab
-        pronunciation: ''
+        difficulty: 3, // Backend expects integer 1-5
+        part_of_speech: 'OTHER', // NOUN, VERB, ADJECTIVE, ADVERB, OTHER
+        synonyms: '',
+        antonyms: '',
+        is_active: true
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        const toastId = toast.loading('Creating flashcard...');
 
         try {
             await flashcardsApi.createFlashcard(formData);
+            toast.success('Flashcard created successfully', { id: toastId });
             router.push('/flashcards');
         } catch (error) {
             console.error('Error creating flashcard:', error);
-            alert('Failed to create flashcard');
+            const errorMessage = (error as any).response?.data?.word?.[0] || 'Failed to create flashcard';
+            toast.error(errorMessage, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -47,17 +53,35 @@ export default function CreateFlashcardPage() {
 
                     <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-6">
 
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Subject</label>
-                            <select
-                                value={formData.subject}
-                                onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
-                            >
-                                <option value="READING">Reading / Vocabulary</option>
-                                <option value="WRITING">Writing</option>
-                                <option value="MATH">Math</option>
-                            </select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Part of Speech</label>
+                                <select
+                                    value={formData.part_of_speech}
+                                    onChange={e => setFormData({ ...formData, part_of_speech: e.target.value })}
+                                    className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
+                                >
+                                    <option value="NOUN">Noun</option>
+                                    <option value="VERB">Verb</option>
+                                    <option value="ADJECTIVE">Adjective</option>
+                                    <option value="ADVERB">Adverb</option>
+                                    <option value="OTHER">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Difficulty (1-5)</label>
+                                <select
+                                    value={formData.difficulty}
+                                    onChange={e => setFormData({ ...formData, difficulty: parseInt(e.target.value) })}
+                                    className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
+                                >
+                                    <option value="1">1 - Easiest</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3 - Medium</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5 - Hardest</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div>
@@ -93,27 +117,25 @@ export default function CreateFlashcardPage() {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Difficulty</label>
-                                <select
-                                    value={formData.difficulty}
-                                    onChange={e => setFormData({ ...formData, difficulty: e.target.value })}
-                                    className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
-                                >
-                                    <option value="EASY">Easy</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="HARD">Hard</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Pronunciation (Opt)</label>
+                                <label className="block text-sm font-medium mb-1">Synonyms (comma separated)</label>
                                 <input
                                     type="text"
-                                    value={formData.pronunciation}
-                                    onChange={e => setFormData({ ...formData, pronunciation: e.target.value })}
+                                    value={formData.synonyms}
+                                    onChange={e => setFormData({ ...formData, synonyms: e.target.value })}
                                     className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
-                                    placeholder="e.g. ə-ˈfem-rəl"
+                                    placeholder="fleeting, transient..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Antonyms (comma separated)</label>
+                                <input
+                                    type="text"
+                                    value={formData.antonyms}
+                                    onChange={e => setFormData({ ...formData, antonyms: e.target.value })}
+                                    className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
+                                    placeholder="eternal, lasting..."
                                 />
                             </div>
                         </div>

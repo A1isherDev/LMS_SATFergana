@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import AuthGuard from '../../components/AuthGuard';
 import DashboardLayout from '../../components/DashboardLayout';
 import { notificationsApi } from '../../utils/api';
-import { Bell, Check, Trash2, Clock, Filter } from 'lucide-react';
+import { Bell, Check, Trash2, Clock, Filter, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
@@ -12,11 +13,13 @@ interface Notification {
     actor_name: string;
     verb: string;
     target_type: string;
+    target_object_id: number;
     is_read: boolean;
     created_at: string;
 }
 
 export default function NotificationsPage() {
+    const router = useRouter();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
@@ -35,6 +38,28 @@ export default function NotificationsPage() {
             console.error('Error fetching notifications:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleNotificationClick = async (notification: Notification) => {
+        // Mark as read first
+        if (!notification.is_read) {
+            await markAsRead(notification.id);
+        }
+
+        // Navigate based on target type
+        switch (notification.target_type.toLowerCase()) {
+            case 'homework':
+                router.push(`/homework`);
+                break;
+            case 'homeworksubmission':
+                router.push(`/homework`);
+                break;
+            case 'class':
+                router.push(`/classes/${notification.target_object_id}`);
+                break;
+            default:
+                break;
         }
     };
 
@@ -114,36 +139,45 @@ export default function NotificationsPage() {
                                 {notifications.map((notification) => (
                                     <div
                                         key={notification.id}
-                                        className={`p-6 flex items-start space-x-4 hover:bg-gray-50 transition-colors ${!notification.is_read ? 'bg-blue-50/30' : ''
+                                        onClick={() => handleNotificationClick(notification)}
+                                        className={`p-6 flex items-start space-x-4 hover:bg-gray-50 transition-all cursor-pointer group active:scale-[0.99] ${!notification.is_read ? 'bg-blue-50/30' : ''
                                             }`}
                                     >
                                         <div className="flex-shrink-0 mt-1">
-                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${!notification.is_read ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'
+                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${!notification.is_read ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'
                                                 }`}>
                                                 <Bell className="h-5 w-5" />
                                             </div>
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between">
-                                                <p className={`text-sm ${!notification.is_read ? 'font-bold text-gray-900' : 'text-gray-600'}`}>
-                                                    <span className="font-semibold text-blue-600">{notification.actor_name}</span> {notification.verb}
-                                                </p>
-                                                {!notification.is_read && (
-                                                    <button
-                                                        onClick={() => markAsRead(notification.id)}
-                                                        className="p-1 text-gray-400 hover:text-blue-600"
-                                                        title="Mark as read"
-                                                    >
-                                                        <Check className="h-4 w-4" />
-                                                    </button>
-                                                )}
+                                                <div className="flex-1">
+                                                    <p className={`text-sm ${!notification.is_read ? 'font-bold text-gray-900' : 'text-gray-600'}`}>
+                                                        <span className="font-semibold text-blue-600">{notification.actor_name}</span> {notification.verb}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    {!notification.is_read && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                markAsRead(notification.id);
+                                                            }}
+                                                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                                            title="Mark as read"
+                                                        >
+                                                            <Check className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                    <ArrowRight className="h-4 w-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
+                                                </div>
                                             </div>
                                             <div className="mt-1 flex items-center text-xs text-gray-500 space-x-3">
                                                 <span className="flex items-center">
                                                     <Clock className="h-3 w-3 mr-1" />
                                                     {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                                                 </span>
-                                                <span className="flex items-center uppercase tracking-wider">
+                                                <span className="flex items-center uppercase tracking-wider bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-[9px] font-bold">
                                                     {notification.target_type}
                                                 </span>
                                             </div>

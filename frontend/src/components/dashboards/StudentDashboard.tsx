@@ -12,7 +12,10 @@ import {
     Calendar,
     ChevronRight,
     LineChart,
-    ClipboardList
+    ClipboardList,
+    ArrowRight,
+    Zap,
+    Trophy
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ExamCountdown from '../ExamCountdown';
@@ -77,276 +80,310 @@ export default function StudentDashboard({
     const handleAnalyticsClick = () => router.push('/analytics');
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-12">
             {/* Header Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <ExamCountdown
                     examDate={studentProfile?.sat_exam_date || null}
-                    className="bg-card rounded-lg shadow p-6"
+                    className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8"
                 />
 
-                <StudyStreak
-                    streakDays={stats.studyStreak}
-                    studyTimeToday={stats.studyTimeToday}
-                    className="col-span-1"
-                />
-
-                <div className="bg-card rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Average Score</p>
-                            <p className={`text-2xl font-bold ${getSatScoreColor(stats.averageScore)}`}>
-                                {stats.averageScore}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Target: 1400+</p>
+                <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-orange-50 dark:bg-orange-900/10 rounded-2xl shadow-sm">
+                            <Zap className="h-6 w-6 text-orange-500" />
                         </div>
-                        <Target className="h-8 w-8 text-muted-foreground opacity-50" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Study Streak</span>
+                    </div>
+                    <div>
+                        <span className="text-3xl font-black text-slate-900 dark:text-white italic">{stats.studyStreak} Days</span>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">Consistency Is King</p>
                     </div>
                 </div>
 
-                <div className="bg-card rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Today&apos;s Study</p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {formatDuration(stats.studyTimeToday)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Goal: 2 hours</p>
+                <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-slate-100 dark:border-gray-700 p-6 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl shadow-sm">
+                            <Target className="h-6 w-6 text-emerald-500" />
                         </div>
-                        <Clock className="h-8 w-8 text-muted-foreground opacity-50" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Average Score</span>
+                    </div>
+                    <div>
+                        <span className={`text-3xl font-black italic ${getSatScoreColor(stats.averageScore)}`}>
+                            {stats.averageScore}
+                        </span>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">Target: 1450+</p>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-slate-100 dark:border-gray-700 p-6 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-2xl shadow-sm">
+                            <Clock className="h-6 w-6 text-blue-500" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Today&apos;s Focus</span>
+                    </div>
+                    <div>
+                        <span className="text-3xl font-black text-slate-900 dark:text-white italic">
+                            {formatDuration(stats.studyTimeToday)}
+                        </span>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">Goal: 2.5 Hours</p>
                     </div>
                 </div>
             </div>
 
             {/* Progress Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="bg-card rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Digital SAT Progress</h3>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-foreground opacity-80">Attempts</p>
-                                <p className="text-2xl font-bold text-purple-600">
-                                    {stats.digitalSatAttempts || 0}
-                                </p>
-                                <p className="text-xs text-muted-foreground">Total practice tests</p>
-                            </div>
-                            <Target className="h-8 w-8 text-muted-foreground opacity-50" />
-                        </div>
+                {/* Digital SAT Card - Premium Style */}
+                <div className="bg-slate-900 rounded-[2.5rem] shadow-xl p-8 space-y-8 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                        <Trophy className="h-32 w-32 text-blue-400" />
+                    </div>
 
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-700">Average Score</p>
-                                <p className={`text-2xl font-bold ${getSatScoreColor(stats.digitalSatAverageScore || 0)}`}>
-                                    {stats.digitalSatAverageScore || 0}
-                                </p>
-                                <p className="text-xs text-gray-500">Out of 1600</p>
-                            </div>
-                            <Award className="h-8 w-8 text-gray-400" />
-                        </div>
+                    <div className="relative z-10">
+                        <h3 className="text-xl font-black uppercase italic mb-8 flex items-center">
+                            <TrendingUp className="h-5 w-5 mr-3 text-blue-400" />
+                            Digital SAT Outlook
+                        </h3>
 
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-700">Best Score</p>
-                                <p className={`text-2xl font-bold ${getSatScoreColor(stats.digitalSatBestScore || 0)}`}>
-                                    {stats.digitalSatBestScore || 0}
-                                </p>
-                                <p className="text-xs text-gray-500">Personal best</p>
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between p-4 bg-white/10 rounded-2xl border border-white/5">
+                                <div>
+                                    <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Best Performance</p>
+                                    <p className="text-2xl font-black italic text-blue-400">{stats.digitalSatBestScore || '---'}</p>
+                                </div>
+                                <Award className="h-8 w-8 text-blue-400 opacity-50" />
                             </div>
-                            <TrendingUp className="h-8 w-8 text-gray-400" />
-                        </div>
 
-                        <button
-                            onClick={() => router.push('/mockexams/bluebook')}
-                            className="w-full flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                        >
-                            <Play className="h-4 w-4 mr-2" />
-                            Practice Digital SAT
-                        </button>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-white/10 rounded-2xl border border-white/5 text-center">
+                                    <p className="text-[9px] font-black text-white/50 uppercase tracking-tighter mb-1">Total Attempts</p>
+                                    <p className="text-xl font-black italic">{stats.digitalSatAttempts || 0}</p>
+                                </div>
+                                <div className="p-4 bg-white/10 rounded-2xl border border-white/5 text-center">
+                                    <p className="text-[9px] font-black text-white/50 uppercase tracking-tighter mb-1">Avg. Readiness</p>
+                                    <p className="text-xl font-black italic">{stats.digitalSatAverageScore || 0}</p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => router.push('/mockexams/bluebook')}
+                                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase italic text-xs tracking-widest hover:bg-blue-500 hover:scale-[1.02] transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center group"
+                            >
+                                <Play className="h-4 w-4 mr-2 group-hover:fill-current" />
+                                Initiate Bluebook Sim
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-card rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Homework Progress</h3>
-                    <div className="space-y-4">
-                        <div>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-sm font-medium text-foreground opacity-80">Completion Rate</span>
-                                <span className="text-sm text-muted-foreground">{formatPercentage(stats.homeworkCompletion)}</span>
+                {/* Homework Progress */}
+                <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 space-y-6">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic">Study Completion</h3>
+                    <div className="space-y-6">
+                        <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl space-y-4">
+                            <div className="flex justify-between items-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Syllabus Progress</p>
+                                <span className="text-sm font-black text-blue-600 italic">{formatPercentage(stats.homeworkCompletion)}</span>
                             </div>
-                            <div className="w-full bg-muted rounded-full h-2">
+                            <div className="w-full bg-slate-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
                                 <div
-                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    className="bg-blue-600 h-full rounded-full shadow-[0_0_10px_rgba(37,99,235,0.4)] transition-all duration-700"
                                     style={{ width: `${stats.homeworkCompletion}%` }}
                                 ></div>
                             </div>
                         </div>
 
                         {stats.nextAssignment ? (
-                            <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
-                                <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Next Up</p>
-                                <h4 className="text-sm font-bold text-blue-900 dark:text-blue-200 mb-2 truncate">{stats.nextAssignment.title}</h4>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-blue-700 dark:text-blue-400">Due in {stats.nextAssignment.days_left} days</span>
+                            <div className="p-6 bg-blue-50 dark:bg-blue-900/10 rounded-3xl border border-blue-100 dark:border-blue-900/30 flex flex-col justify-between h-40">
+                                <div>
+                                    <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2">Priority Module</p>
+                                    <h4 className="text-base font-black text-blue-900 dark:text-blue-200 uppercase leading-none tracking-tighter">{stats.nextAssignment.title}</h4>
+                                </div>
+                                <div className="flex items-center justify-between mt-4">
+                                    <span className="text-[10px] font-black text-blue-700 dark:text-blue-400 italic">DUE IN {stats.nextAssignment.days_left} DAYS</span>
                                     <button
                                         onClick={() => router.push(`/homework`)}
-                                        className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center hover:underline"
+                                        className="p-3 bg-blue-600 text-white rounded-xl hover:scale-110 transition-all shadow-lg shadow-blue-200 dark:shadow-none"
                                     >
-                                        Start <ChevronRight className="h-3 w-3 ml-1" />
+                                        <ArrowRight className="h-4 w-4" />
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex items-center space-x-2 text-sm">
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                                <span className="text-muted-foreground">All caught up!</span>
+                            <div className="flex flex-col items-center justify-center py-10 bg-emerald-50 dark:bg-emerald-900/10 rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
+                                <CheckCircle className="h-8 w-8 text-emerald-500 mb-2" />
+                                <span className="text-xs font-black text-emerald-800 dark:text-emerald-400 uppercase italic">Syllabus Fully Cleared</span>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="bg-card rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Areas to Improve</h3>
+                {/* Weak Areas - Actionable */}
+                <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 space-y-6">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic">Weak Points</h3>
                     <div className="space-y-3">
-                        {stats.weakAreas.map((area, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-red-500/10 rounded-lg">
-                                <div className="flex items-center space-x-2">
-                                    <AlertCircle className="h-4 w-4 text-red-500" />
-                                    <span className="text-sm font-medium text-red-600 dark:text-red-400">{area}</span>
+                        {stats.weakAreas.length > 0 ? (
+                            stats.weakAreas.map((area, index) => (
+                                <div key={index} className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-900/30 group hover:bg-white dark:hover:bg-red-900/20 transition-all">
+                                    <div className="flex items-center space-x-3">
+                                        <AlertCircle className="h-4 w-4 text-red-500" />
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-red-800 dark:text-red-400 uppercase tracking-tight leading-none">{area}</span>
+                                            <span className="text-[8px] text-red-400 font-bold uppercase mt-1 tracking-tighter">High priority focus</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <button
+                                            className="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-[9px] font-black text-red-600 dark:text-red-400 uppercase italic tracking-widest rounded-lg hover:bg-red-600 hover:text-white transition-all"
+                                            onClick={() => handleWeakAreaPractice(area)}
+                                        >
+                                            Practice Questions
+                                        </button>
+                                        <button
+                                            className="p-1.5 bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-900/30 hover:bg-purple-600 hover:text-white hover:border-purple-600 transition-all shadow-sm"
+                                            title="Practice Flashcards"
+                                            onClick={() => router.push(`/flashcards?subject=${encodeURIComponent(area.split(' - ')[0])}`)}
+                                        >
+                                            <Brain className="h-4 w-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <button
-                                    className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium"
-                                    onClick={() => handleWeakAreaPractice(area)}
-                                >
-                                    Practice
-                                </button>
+                            ))
+                        ) : (
+                            <div className="py-12 text-center">
+                                <Award className="h-10 w-10 text-blue-200 mx-auto mb-4" />
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">No weak areas detected yet. Excellent baseline.</p>
                             </div>
-                        ))}
-                        {stats.weakAreas.length === 0 && (
-                            <p className="text-sm text-muted-foreground italic">No weak areas identified. Keep up the great work!</p>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Secondary Row: Upcoming Deadlines & Progress Chart */}
+            {/* Middle Row: Trends & Tracker */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Upcoming Deadlines */}
-                <div className="bg-card rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center space-x-2">
-                            <ClipboardList className="h-5 w-5 text-blue-600" />
-                            <h3 className="text-lg font-semibold text-foreground">Upcoming Deadlines</h3>
+                {/* Score Chart - Enhanced */}
+                <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8">
+                    <ProgressChart
+                        title="Mastery Progression"
+                        data={stats.scoreTrend?.map(s => ({
+                            label: s.date ? s.date.split('-').slice(1).join('/') : 'N/A',
+                            value: s.score
+                        })) || []}
+                        maxValue={1600}
+                        unit=" pts"
+                        type="area"
+                        trend={
+                            !stats.scoreTrend || stats.scoreTrend.length < 2 ? 'stable' :
+                                stats.scoreTrend[stats.scoreTrend.length - 1].score > stats.scoreTrend[stats.scoreTrend.length - 2].score ? 'up' :
+                                    stats.scoreTrend[stats.scoreTrend.length - 1].score < stats.scoreTrend[stats.scoreTrend.length - 2].score ? 'down' : 'stable'
+                        }
+                    />
+                </div>
+
+                <StudySessionTracker
+                    onSessionUpdate={handleSessionUpdate}
+                    className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8"
+                />
+            </div>
+
+            {/* Quick Navigation Cards */}
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8">
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic mb-8">Dynamic Learning Suite</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <button className="flex flex-col items-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-3xl hover:scale-105 transition-all border border-blue-50 dark:border-blue-900/40 shadow-sm" onClick={handlePracticeClick}>
+                        <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl mb-4 group shadow-sm">
+                            <Play className="h-6 w-6 text-blue-600" />
                         </div>
+                        <span className="text-[10px] font-black text-blue-900 dark:text-blue-200 uppercase tracking-widest">Question Bank</span>
+                    </button>
+                    <button className="flex flex-col items-center p-6 bg-emerald-50 dark:bg-emerald-900/20 rounded-3xl hover:scale-105 transition-all border border-emerald-50 dark:border-emerald-900/40 shadow-sm" onClick={handleMockExamClick}>
+                        <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl mb-4 shadow-sm">
+                            <Target className="h-6 w-6 text-emerald-600" />
+                        </div>
+                        <span className="text-[10px] font-black text-emerald-900 dark:text-emerald-200 uppercase tracking-widest">Mock Exams</span>
+                    </button>
+                    <button className="flex flex-col items-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-3xl hover:scale-105 transition-all border border-purple-50 dark:border-purple-900/40 shadow-sm" onClick={handleFlashcardsClick}>
+                        <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl mb-4 shadow-sm">
+                            <Brain className="h-6 w-6 text-purple-600" />
+                        </div>
+                        <span className="text-[10px] font-black text-purple-900 dark:text-purple-200 uppercase tracking-widest">Flashcards</span>
+                    </button>
+                    <button className="flex flex-col items-center p-6 bg-orange-50 dark:bg-orange-900/20 rounded-3xl hover:scale-105 transition-all border border-orange-50 dark:border-orange-900/40 shadow-sm" onClick={handleAnalyticsClick}>
+                        <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl mb-4 shadow-sm">
+                            <TrendingUp className="h-6 w-6 text-orange-600" />
+                        </div>
+                        <span className="text-[10px] font-black text-orange-900 dark:text-orange-200 uppercase tracking-widest">Full Insights</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Bottom Row: Activity & Deadlines */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Recent Activity */}
+                <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic mb-8">Digital Pulse</h3>
+                    <div className="space-y-4">
+                        {stats.recentActivity.length > 0 ? (
+                            stats.recentActivity.slice(0, 5).map((activity, index) => (
+                                <div key={index} className="flex items-center space-x-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-all border border-transparent hover:border-slate-100">
+                                    <div className="h-10 w-10 rounded-xl bg-slate-900 dark:bg-slate-700 flex items-center justify-center text-white shadow-lg">
+                                        {getActivityIcon(activity.type)}
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tight italic">{activity.description}</p>
+                                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                                            {new Date(activity.timestamp).toLocaleDateString()} AT{' '}
+                                            {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-dashed border-slate-200">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Waiting for initial activity...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Deadlines */}
+                <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic">Deadlines</h3>
                         <button
                             onClick={() => router.push('/homework')}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                            className="text-[10px] font-black uppercase text-blue-600 hover:text-blue-800 tracking-widest flex items-center italic"
                         >
-                            View All
+                            History <ArrowRight className="h-4 w-4 ml-1" />
                         </button>
                     </div>
 
                     <div className="space-y-4">
                         {stats.upcomingDeadlines && stats.upcomingDeadlines.length > 0 ? (
                             stats.upcomingDeadlines.map((deadline) => (
-                                <div key={deadline.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors border border-border">
+                                <div key={deadline.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-gray-700/50 rounded-2xl border border-slate-50 dark:border-gray-600 group hover:border-blue-400 transition-all">
                                     <div className="flex items-center space-x-3">
-                                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                            <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm text-blue-600">
+                                            <Calendar className="h-4 w-4" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-foreground">{deadline.title}</p>
-                                            <p className="text-xs text-muted-foreground">Due {new Date(deadline.due_date).toLocaleDateString()}</p>
+                                            <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{deadline.title}</p>
+                                            <p className="text-[8px] text-slate-400 font-bold">DUE {new Date(deadline.due_date).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <div className={`text-xs font-bold px-2 py-1 rounded ${deadline.days_left <= 1 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                                        }`}>
-                                        {deadline.days_left === 0 ? 'Due Today' : `${deadline.days_left}d left`}
+                                    <div className={`text-[9px] font-black px-3 py-1 rounded-lg italic uppercase shadow-sm ${deadline.days_left <= 1 ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                                        {deadline.days_left === 0 ? 'Urgent' : `${deadline.days_left}d`}
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            <div className="text-center py-10">
-                                <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-2 opacity-20" />
-                                <p className="text-sm text-muted-foreground">No upcoming deadlines.</p>
+                            <div className="text-center py-10 bg-emerald-50 dark:bg-emerald-900/10 rounded-3xl border border-emerald-100">
+                                <CheckCircle className="h-10 w-10 text-emerald-500 mx-auto mb-4 opacity-50" />
+                                <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase italic">All deadlines cleared</p>
                             </div>
                         )}
                     </div>
-                </div>
-
-                {/* Score Trends */}
-                <ProgressChart
-                    title="Score Progress"
-                    data={stats.scoreTrend?.map(s => ({
-                        label: s.date ? s.date.split('-').slice(1).join('/') : 'N/A',
-                        value: s.score
-                    })) || []}
-                    maxValue={1600}
-                    unit=" pts"
-                    type="area"
-                    trend={
-                        !stats.scoreTrend || stats.scoreTrend.length < 2 ? 'stable' :
-                            stats.scoreTrend[stats.scoreTrend.length - 1].score > stats.scoreTrend[stats.scoreTrend.length - 2].score ? 'up' :
-                                stats.scoreTrend[stats.scoreTrend.length - 1].score < stats.scoreTrend[stats.scoreTrend.length - 2].score ? 'down' : 'stable'
-                    }
-                />
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-card rounded-lg shadow p-6 text-foreground">
-                <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-                <div className="space-y-4">
-                    {stats.recentActivity.length > 0 ? (
-                        stats.recentActivity.map((activity, index) => (
-                            <div key={index} className="flex items-center space-x-3 p-3 hover:bg-muted/50 rounded-lg transition-colors border border-transparent hover:border-border">
-                                <div className="flex-shrink-0">
-                                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                                        {getActivityIcon(activity.type)}
-                                    </div>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-foreground">{activity.description}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {new Date(activity.timestamp).toLocaleDateString()} at{' '}
-                                        {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="text-center py-6 bg-muted/30 rounded-lg border border-dashed border-border">
-                            <p className="text-sm text-muted-foreground italic">No recent activity recorded. Start studying to see your feed!</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Study Session Tracker */}
-            <StudySessionTracker
-                onSessionUpdate={handleSessionUpdate}
-                className="col-span-1"
-            />
-
-            {/* Quick Actions */}
-            <div className="bg-card rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <button className="flex flex-col items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 border border-blue-100 dark:border-blue-900/30 transition-all" onClick={handlePracticeClick}>
-                        <Play className="h-6 w-6 text-blue-600 dark:text-blue-400 mb-2" />
-                        <span className="text-sm font-medium text-blue-900 dark:text-blue-200">Start Practice</span>
-                    </button>
-                    <button className="flex flex-col items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 border border-green-100 dark:border-green-900/30 transition-all" onClick={handleMockExamClick}>
-                        <Target className="h-6 w-6 text-green-600 dark:text-green-400 mb-2" />
-                        <span className="text-sm font-medium text-green-900 dark:text-green-200">Take Mock Exam</span>
-                    </button>
-                    <button className="flex flex-col items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-100 dark:border-purple-900/30 transition-all" onClick={handleFlashcardsClick}>
-                        <Brain className="h-6 w-6 text-purple-600 dark:text-purple-400 mb-2" />
-                        <span className="text-sm font-medium text-purple-900 dark:text-purple-200">Review Flashcards</span>
-                    </button>
-                    <button className="flex flex-col items-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 border border-orange-100 dark:border-orange-900/30 transition-all" onClick={handleAnalyticsClick}>
-                        <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400 mb-2" />
-                        <span className="text-sm font-medium text-orange-900 dark:text-orange-200">View Analytics</span>
-                    </button>
                 </div>
             </div>
         </div>

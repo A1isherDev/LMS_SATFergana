@@ -15,7 +15,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, getSatScoreColor } from '../../utils/helpers';
 import { classesApi } from '../../utils/api';
 
 interface Teacher {
@@ -64,15 +64,10 @@ export default function ClassesPage() {
     router.push(`/analytics?class_id=${classId}`);
   };
 
-  const handleFilter = () => {
-    // TODO: Implement advanced filtering
-    console.log('Filter clicked - implement advanced filters');
-  };
-
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        if (user?.role === 'TEACHER') {
+        if (user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') {
           const response = await classesApi.getClasses() as unknown as { results: Class[] } | Class[];
           setClasses('results' in response ? response.results : response);
         } else if (user?.role === 'STUDENT') {
@@ -81,7 +76,6 @@ export default function ClassesPage() {
         }
       } catch (error) {
         console.error('Failed to fetch classes:', error);
-        // Set empty array on error
         setClasses([]);
       } finally {
         setIsLoading(false);
@@ -104,14 +98,11 @@ export default function ClassesPage() {
     return (
       <AuthGuard>
         <DashboardLayout>
-          <div className="animate-pulse">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="animate-pulse space-y-8">
+            <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-2xl w-64"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-white rounded-lg shadow p-6">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                </div>
+                <div key={i} className="h-64 bg-slate-200 dark:bg-slate-700 rounded-[2.5rem]"></div>
               ))}
             </div>
           </div>
@@ -123,138 +114,95 @@ export default function ClassesPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="space-y-6">
+        <div className="max-w-7xl mx-auto space-y-12 pb-20">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Classes</h1>
-              <p className="text-gray-600">
-                {user?.role === 'TEACHER' ? 'Manage your classes and students' : 'View your enrolled classes'}
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 block">Educational Network</span>
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Academic Classes</h1>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mt-2">
+                {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') ? 'Manage your instructional cohorts and student performance' : 'Access your registered instructional sessions'}
               </p>
             </div>
-            {user?.role === 'TEACHER' && (
+            {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && (
               <button
                 onClick={handleCreateClass}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center px-10 py-4 bg-blue-600 text-white rounded-[1.5rem] font-black uppercase italic tracking-widest text-[10px] hover:scale-105 transition-all shadow-xl shadow-blue-500/20"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create Class
+                Establish Cohort
               </button>
             )}
           </div>
 
-          {/* Search and Filter */}
-          <div className="flex items-center space-x-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {/* Controls */}
+          <div className="flex items-center gap-6">
+            <div className="flex-1 relative group">
+              <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-blue-500" />
               <input
                 type="text"
-                placeholder="Search classes..."
+                placeholder="Search cohorts or descriptions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-16 pr-6 py-5 bg-white dark:bg-gray-800 border-none rounded-[1.5rem] shadow-sm focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-slate-900 dark:text-white"
               />
             </div>
-            <button
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              onClick={handleFilter}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
+            <button className="flex items-center px-8 py-5 bg-white dark:bg-gray-800 border-none rounded-[1.5rem] shadow-sm hover:bg-slate-50 transition-all text-slate-400 group">
+              <Filter className="h-4 w-4 mr-2 group-hover:text-blue-500" />
+              <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-slate-900">Advanced Filter</span>
             </button>
           </div>
 
           {/* Classes Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {filteredClasses.map((cls) => (
-              <div key={cls.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
-                <div className="p-6">
-                  {/* Class Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{cls.name}</h3>
-                      <p className="text-sm text-gray-600 line-clamp-2">{cls.description}</p>
+              <div key={cls.id} className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden hover:border-blue-400 transition-all group active:scale-[0.98]">
+                <div className="p-8 pb-4">
+                  <div className="flex items-start justify-between mb-8">
+                    <div className="p-4 bg-slate-900 dark:bg-blue-600 rounded-3xl text-white shadow-xl">
+                      <Users className="h-6 w-6" />
                     </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${cls.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    <span className={`px-4 py-2 text-[8px] font-black rounded-full uppercase tracking-[0.1em] ${cls.is_active ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' : 'bg-slate-100 text-slate-400 dark:bg-gray-700'
                       }`}>
-                      {cls.is_active ? 'Active' : 'Inactive'}
+                      {cls.is_active ? 'Online' : 'Hibernated'}
                     </span>
                   </div>
 
-                  {/* Teacher Info */}
-                  <div className="flex items-center mb-4">
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                      <Users className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {cls.teacher.first_name} {cls.teacher.last_name}
-                      </p>
-                      <p className="text-xs text-gray-500">Instructor</p>
-                    </div>
-                  </div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-2 leading-tight group-hover:text-blue-600 transition-colors">{cls.name}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Instructor: {cls.teacher.first_name} {cls.teacher.last_name}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-8 font-medium italic">"{cls.description}"</p>
 
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="grid grid-cols-3 gap-6 py-6 border-y border-slate-50 dark:border-gray-700/50">
                     <div className="text-center">
-                      <div className="flex items-center justify-center mb-1">
-                        <Users className="h-4 w-4 text-gray-400 mr-1" />
-                        <span className="text-lg font-semibold text-gray-900">{cls.students.length}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">Students</p>
+                      <p className="text-xl font-black text-slate-900 dark:text-white italic">{cls.students.length}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Peers</p>
+                    </div>
+                    <div className="text-center border-x border-slate-50 dark:border-gray-700/50">
+                      <p className="text-xl font-black text-slate-900 dark:text-white italic">{cls.homework_count}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Tasks</p>
                     </div>
                     <div className="text-center">
-                      <div className="flex items-center justify-center mb-1">
-                        <BookOpen className="h-4 w-4 text-gray-400 mr-1" />
-                        <span className="text-lg font-semibold text-gray-900">{cls.homework_count}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">Homework</p>
+                      <p className={`text-xl font-black italic ${getSatScoreColor(cls.average_score)}`}>{cls.average_score || '--'}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Rating</p>
                     </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center mb-1">
-                        <Award className="h-4 w-4 text-gray-400 mr-1" />
-                        <span className="text-lg font-semibold text-gray-900">{cls.average_score}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">Avg Score</p>
-                    </div>
-                  </div>
-
-                  {/* Upcoming Homework */}
-                  {cls.upcoming_homework > 0 && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                      <div className="flex items-center">
-                        <Clock className="h-4 w-4 text-yellow-600 mr-2" />
-                        <span className="text-sm text-yellow-800">
-                          {cls.upcoming_homework} upcoming assignment{cls.upcoming_homework > 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex space-x-2">
-                    <button
-                      className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                      onClick={() => handleViewClass(cls.id)}
-                    >
-                      View Class
-                    </button>
-                    {user?.role === 'TEACHER' && (
-                      <button
-                        className="px-3 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors"
-                        onClick={() => handleClassAnalytics(cls.id)}
-                      >
-                        <TrendingUp className="h-4 w-4" />
-                      </button>
-                    )}
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">
-                    Created {formatDate(cls.created_at)}
-                  </p>
+                <div className="p-8 pt-4 flex gap-4">
+                  <button
+                    className="flex-1 py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-white rounded-2xl font-black uppercase italic text-[10px] tracking-widest hover:bg-slate-900 hover:text-white transition-all"
+                    onClick={() => handleViewClass(cls.id)}
+                  >
+                    Open Console
+                  </button>
+                  {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && (
+                    <button
+                      className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                      onClick={() => handleClassAnalytics(cls.id)}
+                    >
+                      <TrendingUp className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -262,20 +210,20 @@ export default function ClassesPage() {
 
           {/* Empty State */}
           {filteredClasses.length === 0 && (
-            <div className="text-center py-12">
-              <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="h-6 w-6 text-gray-400" />
+            <div className="text-center py-32 bg-white dark:bg-gray-800 rounded-[3rem] border border-dashed border-slate-200 dark:border-gray-700">
+              <div className="h-20 w-20 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 flex items-center justify-center mx-auto mb-8 shadow-inner">
+                <BookOpen className="h-8 w-8 text-slate-300" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No classes found</h3>
-              <p className="text-gray-500 mb-4">
-                {searchTerm ? 'Try adjusting your search terms' : 'Get started by creating your first class'}
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-2">No Active Cohorts</h3>
+              <p className="text-slate-400 font-medium uppercase text-[10px] tracking-[0.2em] mb-10">
+                {searchTerm ? 'Adjust filter parameters for wider search' : 'Initiate a new instructional cycle'}
               </p>
-              {user?.role === 'TEACHER' && !searchTerm && (
+              {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && !searchTerm && (
                 <button
                   onClick={handleCreateClass}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-12 py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase italic tracking-widest text-xs hover:scale-105 transition-all shadow-2xl shadow-blue-500/20"
                 >
-                  Create Class
+                  Create Your First Class
                 </button>
               )}
             </div>

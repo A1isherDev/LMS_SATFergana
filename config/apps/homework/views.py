@@ -12,6 +12,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse
 import csv
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.common.permissions import IsTeacherOrAdmin, IsClassTeacher, IsStudent
+from apps.common.views import AuditLogMixin
 from apps.homework.models import Homework, HomeworkSubmission
 from apps.homework.serializers import (
     HomeworkSerializer,
@@ -25,7 +27,7 @@ from apps.homework.serializers import (
 from apps.common.permissions import IsTeacherOrAdmin, IsClassTeacher, IsStudent
 
 
-class HomeworkViewSet(viewsets.ModelViewSet):
+class HomeworkViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for Homework model.
     Different access levels for teachers/admins vs students.
@@ -57,19 +59,25 @@ class HomeworkViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
+        base_queryset = Homework.objects.select_related('class_obj', 'assigned_by').prefetch_related('questions')
         
         if user.is_admin:
-            return Homework.objects.select_related('class_obj', 'assigned_by').prefetch_related('questions').all()
-        elif user.is_teacher:
-            return Homework.objects.filter(
-                assigned_by=user
-            ).select_related('class_obj', 'assigned_by').prefetch_related('questions')
+            return base_queryset.all()
+        elif user.is_main_teacher:
+            # Main Teachers see homework they assigned
+            return base_queryset.filter(assigned_by=user)
+        elif user.is_support_teacher:
+            # Support Teachers see homework for classes they are assigned to (via class teacher or member logic)
+            # For now, if they are support teacher, they might follow their assigned_main_teacher's homework
+            if user.assigned_main_teacher:
+                return base_queryset.filter(assigned_by=user.assigned_main_teacher)
+            return base_queryset.none()
         elif user.is_student:
             # Students can see published homework for their classes
-            return Homework.objects.filter(
+            return base_queryset.filter(
                 class_obj__students=user,
                 is_published=True
-            ).select_related('class_obj', 'assigned_by').prefetch_related('questions')
+            )
         else:
             return Homework.objects.none()
     
@@ -81,16 +89,18 @@ class HomeworkViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """Set permissions based on action."""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsTeacherOrAdmin()]
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'bulk_create']:
+            from apps.common.permissions import IsMainTeacher, IsAdmin
+            return [(IsMainTeacher | IsAdmin)()]
         return [permissions.IsAuthenticated()]
     
     def perform_create(self, serializer):
         """Set assigned_by to current user and notify students if published."""
-        homework = serializer.save(assigned_by=self.request.user)
+        instance = serializer.save(assigned_by=self.request.user)
+        self.log_audit(instance, 'CREATE')
         
-        if homework.is_published:
-            self._notify_students_new_homework(homework)
+        if instance.is_published:
+            self._notify_students_new_homework(instance)
 
     def _notify_students_new_homework(self, homework):
         """Send notifications to all students in the class about new homework."""
@@ -378,7 +388,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         return response
 
 
-class HomeworkSubmissionViewSet(viewsets.ModelViewSet):
+class HomeworkSubmissionViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """
     ViewSet for HomeworkSubmission model.
     """
@@ -387,18 +397,20 @@ class HomeworkSubmissionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return queryset based on user role."""
         user = self.request.user
+        base_queryset = HomeworkSubmission.objects.select_related('homework', 'student')
         
         if user.is_admin:
-            return HomeworkSubmission.objects.select_related('homework', 'student').all()
-        elif user.is_teacher:
-            # Teachers can see submissions for their classes
-            return HomeworkSubmission.objects.filter(
-                homework__class_obj__teacher=user
-            ).select_related('homework', 'student')
+            return base_queryset.all()
+        elif user.is_main_teacher:
+            # Main teachers see submissions for their classes
+            return base_queryset.filter(homework__class_obj__teacher=user)
+        elif user.is_support_teacher:
+            # Support teachers see submissions for their assigned main teacher's classes
+            if user.assigned_main_teacher:
+                return base_queryset.filter(homework__class_obj__teacher=user.assigned_main_teacher)
+            return base_queryset.none()
         elif user.is_student:
-            return HomeworkSubmission.objects.filter(
-                student=user
-            ).select_related('homework')
+            return base_queryset.filter(student=user)
         else:
             return HomeworkSubmission.objects.none()
     

@@ -48,12 +48,12 @@ export default function DashboardLayout({ children }: LayoutProps) {
     { name: 'Notifications', href: '/notifications', icon: Bell },
   ];
 
-  // Add Invitations for teachers and admins
-  const teacherNavigation = user?.role === 'TEACHER' || user?.role === 'ADMIN'
+  // Add Invitations for admins only
+  const adminNavigation = user?.role === 'ADMIN'
     ? [...navigation.slice(0, 2), { name: 'Invitations', href: '/invitations', icon: User }, ...navigation.slice(2)]
     : navigation;
 
-  const finalNavigation = teacherNavigation;
+  const finalNavigation = adminNavigation;
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,8 +72,10 @@ export default function DashboardLayout({ children }: LayoutProps) {
         <div className="flex flex-col h-full">
           <div className={`flex items-center ${collapsed ? 'h-16 px-4 lg:justify-center justify-between' : 'h-16 px-4 justify-between border-b border-border'} transition-all duration-300`}>
             <div className="flex items-center">
-              <BookOpen className="h-8 w-8 text-primary flex-shrink-0" />
-              <span className={`font-bold text-xl text-foreground ml-2 transition-all duration-300 ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden' : 'opacity-100'}`}>
+              <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20 mr-3 flex-shrink-0">
+                <BookOpen className="h-5 w-5 text-white" />
+              </div>
+              <span className={`font-black text-lg uppercase italic tracking-tighter text-slate-900 dark:text-white transition-all duration-300 ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden' : 'opacity-100'}`}>
                 SAT Fergana
               </span>
             </div>
@@ -102,13 +104,13 @@ export default function DashboardLayout({ children }: LayoutProps) {
                   key={item.name}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center ${collapsed ? 'lg:justify-center' : 'justify-start px-4'} py-3 text-base font-medium rounded-md transition-colors duration-200 ${isActive
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  className={`flex items-center ${collapsed ? 'lg:justify-center' : 'justify-start px-6'} py-4 rounded-[1.25rem] transition-all duration-300 group ${isActive
+                    ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-xl shadow-slate-200 dark:shadow-none translate-x-1 scale-105'
+                    : 'text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-gray-800'
                     }`}
                 >
-                  <item.icon className="h-6 w-6 flex-shrink-0" />
-                  <span className={`ml-3 transition-all duration-300 ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden lg:absolute' : 'opacity-100'}`}>
+                  <item.icon className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                  <span className={`ml-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${isActive ? 'italic' : ''} ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden lg:absolute' : 'opacity-100'}`}>
                     {item.name}
                   </span>
                 </Link>
@@ -118,30 +120,30 @@ export default function DashboardLayout({ children }: LayoutProps) {
 
           {/* Theme Toggle & User Menu */}
           <div className="border-t border-border px-4 py-3 space-y-4">
-            <div className={`flex items-center justify-between px-2 ${collapsed ? 'lg:flex-col lg:space-y-2' : ''}`}>
-              <span className={`text-xs font-semibold text-muted-foreground uppercase tracking-wider ${collapsed ? 'lg:hidden' : ''}`}>Theme</span>
+            <div className={`flex items-center justify-between px-4 ${collapsed ? 'lg:flex-col lg:space-y-2' : ''}`}>
+              <span className={`text-[9px] font-black text-slate-400 uppercase tracking-widest ${collapsed ? 'lg:hidden' : ''}`}>System Mode</span>
               <ThemeToggle />
             </div>
 
             <div className="flex flex-col space-y-2">
               <button
                 onClick={() => { router.push('/settings'); setMobileMenuOpen(false); }}
-                className={`flex items-center ${collapsed ? 'lg:justify-center' : 'justify-start px-4'} py-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors cursor-pointer`}
+                className={`flex items-center ${collapsed ? 'lg:justify-center' : 'justify-start px-6'} py-4 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-[1.25rem] transition-all hover:bg-slate-50 dark:hover:bg-gray-800 group`}
                 title="Settings"
               >
-                <Settings className="h-6 w-6 flex-shrink-0" />
-                <span className={`ml-3 transition-all duration-300 ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden lg:absolute' : 'opacity-100'}`}>
+                <Settings className="h-5 w-5 flex-shrink-0 group-hover:rotate-45 transition-transform duration-300" />
+                <span className={`ml-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden lg:absolute' : 'opacity-100'}`}>
                   Settings
                 </span>
               </button>
 
               <button
                 onClick={handleLogout}
-                className={`flex items-center ${collapsed ? 'lg:justify-center' : 'justify-start px-4'} py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors cursor-pointer`}
+                className={`flex items-center ${collapsed ? 'lg:justify-center' : 'justify-start px-6'} py-4 text-red-500 hover:text-white hover:bg-red-500 rounded-[1.25rem] transition-all group`}
                 title="Logout"
               >
-                <LogOut className="h-6 w-6 flex-shrink-0" />
-                <span className={`ml-3 transition-all duration-300 ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden lg:absolute' : 'opacity-100'}`}>
+                <LogOut className="h-5 w-5 flex-shrink-0 group-hover:-translate-x-1 transition-transform" />
+                <span className={`ml-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden lg:absolute' : 'opacity-100'}`}>
                   Logout
                 </span>
               </button>
@@ -164,11 +166,11 @@ export default function DashboardLayout({ children }: LayoutProps) {
                   <Menu className="h-6 w-6" />
                 </button>
                 <div>
-                  <h1 className="text-xl lg:text-2xl font-bold text-foreground line-clamp-1">
-                    Welcome back, {user?.first_name}!
+                  <h1 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">
+                    Welcome, {user?.first_name}
                   </h1>
-                  <p className="text-xs lg:text-sm text-muted-foreground hidden sm:block">
-                    Track your SAT preparation progress
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">
+                    YOUR SAT PREPARATION DASHBOARD
                   </p>
                 </div>
               </div>
@@ -177,7 +179,7 @@ export default function DashboardLayout({ children }: LayoutProps) {
                 <NotificationBell />
                 <div className="text-right hidden md:block">
                   <p className="text-sm font-medium text-foreground">
-                    {user?.role === 'STUDENT' ? 'Student' : user?.role === 'TEACHER' ? 'Teacher' : 'Admin'}
+                    {user?.role === 'STUDENT' ? 'Student' : (user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') ? 'Teacher' : 'Admin'}
                   </p>
                 </div>
               </div>

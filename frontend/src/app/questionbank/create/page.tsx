@@ -6,46 +6,55 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { questionBankApi } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { Save, Loader } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function CreateQuestionPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
 
-    // Initial state matching Question interface logic
+    // Initial state matching Question model
     const [formData, setFormData] = useState({
         question_text: '',
-        question_type: 'MULTIPLE_CHOICE', // MULTIPLE_CHOICE, TEXT, MATH
-        subject: 'MATH', // MATH, READING, WRITING
-        difficulty: 'MEDIUM',
-        correct_answer: '',
+        question_type: 'MATH', // MATH, READING, WRITING
+        skill_tag: '', // backend expects string
+        difficulty: 3, // Backend expects integer 1-5
+        correct_answer: 'A', // A, B, C, D
         explanation: '',
-        options: ['', '', '', ''], // For multiple choice
-        tags: '', // Comma separated
+        options: {
+            A: '',
+            B: '',
+            C: '',
+            D: ''
+        },
+        estimated_time_seconds: 60,
         is_active: true
     });
 
-    const handleOptionChange = (index: number, value: string) => {
-        const newOptions = [...formData.options];
-        newOptions[index] = value;
-        setFormData({ ...formData, options: newOptions });
+    const handleOptionChange = (key: string, value: string) => {
+        setFormData({
+            ...formData,
+            options: {
+                ...formData.options,
+                [key]: value
+            }
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        const toastId = toast.loading('Adding question to bank...');
 
         try {
-            const dataToSubmit: any = {
-                ...formData,
-                tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-                options: formData.question_type === 'MULTIPLE_CHOICE' ? formData.options : []
-            };
-
-            await questionBankApi.createQuestion(dataToSubmit);
+            // Validate that we have options if it's multiple choice (though it's always JSON in model)
+            await questionBankApi.createQuestion(formData);
+            toast.success('Question added successfully', { id: toastId });
             router.push('/questionbank');
         } catch (error) {
             console.error('Error creating question:', error);
-            alert('Failed to create question');
+            const data = (error as any).response?.data;
+            const errorMessage = typeof data === 'object' ? Object.values(data).flat()[0] as string : 'Failed to create question';
+            toast.error(errorMessage || 'Failed to create question. Please check your input.', { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -62,12 +71,12 @@ export default function CreateQuestionPage() {
 
                     <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-6">
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Subject</label>
+                                <label className="block text-sm font-medium mb-1">Subject / Section</label>
                                 <select
-                                    value={formData.subject}
-                                    onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                                    value={formData.question_type}
+                                    onChange={e => setFormData({ ...formData, question_type: e.target.value })}
                                     className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
                                 >
                                     <option value="MATH">Math</option>
@@ -77,30 +86,41 @@ export default function CreateQuestionPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium mb-1">Type</label>
+                                <label className="block text-sm font-medium mb-1">Difficulty (1-5)</label>
                                 <select
-                                    value={formData.question_type}
-                                    onChange={e => setFormData({ ...formData, question_type: e.target.value })}
+                                    value={formData.difficulty}
+                                    onChange={e => setFormData({ ...formData, difficulty: parseInt(e.target.value) })}
                                     className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
                                 >
-                                    <option value="MULTIPLE_CHOICE">Multiple Choice</option>
-                                    <option value="MATH">Grid-in / Math</option>
-                                    <option value="TEXT">Text Response</option>
+                                    <option value="1">1 - Easiest</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3 - Medium</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5 - Hardest</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium mb-1">Difficulty</label>
-                                <select
-                                    value={formData.difficulty}
-                                    onChange={e => setFormData({ ...formData, difficulty: e.target.value })}
+                                <label className="block text-sm font-medium mb-1">Est. Time (seconds)</label>
+                                <input
+                                    type="number"
+                                    value={formData.estimated_time_seconds}
+                                    onChange={e => setFormData({ ...formData, estimated_time_seconds: parseInt(e.target.value) })}
                                     className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
-                                >
-                                    <option value="EASY">Easy</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="HARD">Hard</option>
-                                </select>
+                                />
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Skill Tag / Topic</label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.skill_tag}
+                                onChange={e => setFormData({ ...formData, skill_tag: e.target.value })}
+                                className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
+                                placeholder="e.g. Algebra, Main Idea, Grammar"
+                            />
                         </div>
 
                         <div>
@@ -114,47 +134,31 @@ export default function CreateQuestionPage() {
                             />
                         </div>
 
-                        {formData.question_type === 'MULTIPLE_CHOICE' && (
-                            <div className="space-y-3">
-                                <label className="block text-sm font-medium">Options</label>
-                                {formData.options.map((option, idx) => (
-                                    <div key={idx} className="flex items-center gap-2">
-                                        <span className="w-6 text-center font-bold text-gray-500">{String.fromCharCode(65 + idx)}</span>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={option}
-                                            onChange={e => handleOptionChange(idx, e.target.value)}
-                                            className="flex-1 px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
-                                            placeholder={`Option ${String.fromCharCode(65 + idx)}`}
-                                        />
-                                        <input
-                                            type="radio"
-                                            name="correct_answer"
-                                            checked={formData.correct_answer === option && option !== ''}
-                                            onChange={() => setFormData({ ...formData, correct_answer: option })}
-                                            className="h-4 w-4"
-                                            title="Mark as correct answer"
-                                        />
-                                    </div>
-                                ))}
-                                <p className="text-xs text-gray-400">Select the radio button next to the correct answer.</p>
-                            </div>
-                        )}
-
-                        {formData.question_type !== 'MULTIPLE_CHOICE' && (
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Correct Answer</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={formData.correct_answer}
-                                    onChange={e => setFormData({ ...formData, correct_answer: e.target.value })}
-                                    className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
-                                    placeholder="Exact answer key"
-                                />
-                            </div>
-                        )}
+                        <div className="space-y-3">
+                            <label className="block text-sm font-medium">Options & Correct Answer</label>
+                            {(['A', 'B', 'C', 'D'] as const).map((key) => (
+                                <div key={key} className="flex items-center gap-2">
+                                    <span className="w-6 text-center font-bold text-gray-500">{key}</span>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.options[key]}
+                                        onChange={e => handleOptionChange(key, e.target.value)}
+                                        className="flex-1 px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
+                                        placeholder={`Option ${key}`}
+                                    />
+                                    <input
+                                        type="radio"
+                                        name="correct_answer"
+                                        checked={formData.correct_answer === key}
+                                        onChange={() => setFormData({ ...formData, correct_answer: key })}
+                                        className="h-4 w-4"
+                                        title="Mark as correct answer"
+                                    />
+                                </div>
+                            ))}
+                            <p className="text-xs text-gray-400">Select the radio button next to the correct answer.</p>
+                        </div>
 
                         <div>
                             <label className="block text-sm font-medium mb-1">Explanation</label>
@@ -164,17 +168,6 @@ export default function CreateQuestionPage() {
                                 className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
                                 rows={3}
                                 placeholder="Explain why the answer is correct..."
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Tags (comma separated)</label>
-                            <input
-                                type="text"
-                                value={formData.tags}
-                                onChange={e => setFormData({ ...formData, tags: e.target.value })}
-                                className="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600"
-                                placeholder="algebra, geometry, grammar..."
                             />
                         </div>
 
@@ -195,7 +188,6 @@ export default function CreateQuestionPage() {
                                 Save Question
                             </button>
                         </div>
-
                     </form>
                 </div>
             </DashboardLayout>

@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { mockExamsApi } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { Save, Plus, X, Loader } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function CreateMockExamPage() {
     const router = useRouter();
@@ -24,12 +25,14 @@ export default function CreateMockExamPage() {
         e.preventDefault();
         setIsLoading(true);
 
+        const toastId = toast.loading('Creating mock exam...');
         try {
             await mockExamsApi.createExam(formData);
+            toast.success('Mock exam created successfully!', { id: toastId });
             router.push('/mockexams');
         } catch (error) {
             console.error('Error creating exam:', error);
-            alert('Failed to create mock exam');
+            toast.error('Failed to create mock exam', { id: toastId });
         } finally {
             setIsLoading(false);
         }

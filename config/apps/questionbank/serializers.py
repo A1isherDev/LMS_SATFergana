@@ -14,7 +14,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'question_type', 'question_type_display', 'skill_tag', 'difficulty',
             'question_text', 'question_image', 'options', 'correct_answer', 'explanation',
-            'estimated_time_seconds', 'is_active', 'created_at', 'updated_at'
+            'estimated_time_seconds', 'is_active', 'is_math_input', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
@@ -58,7 +58,7 @@ class QuestionListSerializer(serializers.ModelSerializer):
         model = Question
         fields = [
             'id', 'question_type', 'question_type_display', 'skill_tag',
-            'difficulty', 'estimated_time_seconds', 'is_active', 'created_at'
+            'difficulty', 'question_text', 'estimated_time_seconds', 'is_active', 'is_math_input', 'created_at'
         ]
 
 
@@ -70,7 +70,20 @@ class QuestionStudentSerializer(serializers.ModelSerializer):
         model = Question
         fields = [
             'id', 'question_type', 'question_type_display', 'skill_tag', 'difficulty',
-            'question_text', 'question_image', 'options', 'estimated_time_seconds'
+            'question_text', 'question_image', 'options', 'estimated_time_seconds', 'is_math_input'
+        ]
+
+
+class QuestionReviewSerializer(serializers.ModelSerializer):
+    """Serializer for students to review (includes correct answer and explanation)."""
+    question_type_display = serializers.CharField(source='get_question_type_display', read_only=True)
+    
+    class Meta:
+        model = Question
+        fields = [
+            'id', 'question_type', 'question_type_display', 'skill_tag', 'difficulty',
+            'question_text', 'question_image', 'options', 'correct_answer', 'explanation',
+            'estimated_time_seconds', 'is_math_input'
         ]
 
 
@@ -88,12 +101,7 @@ class QuestionAttemptSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'is_correct', 'created_at']
     
-    def validate_selected_answer(self, value):
-        """Validate selected answer."""
-        valid_answers = ['A', 'B', 'C', 'D']
-        if value not in valid_answers:
-            raise serializers.ValidationError("Selected answer must be A, B, C, or D")
-        return value
+
     
     def validate_time_spent_seconds(self, value):
         """Validate time spent."""
@@ -124,12 +132,7 @@ class QuestionAttemptCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Cannot attempt inactive question")
         return value
     
-    def validate_selected_answer(self, value):
-        """Validate selected answer."""
-        valid_answers = ['A', 'B', 'C', 'D']
-        if value not in valid_answers:
-            raise serializers.ValidationError("Selected answer must be A, B, C, or D")
-        return value
+
     
     def validate_time_spent_seconds(self, value):
         """Validate time spent."""

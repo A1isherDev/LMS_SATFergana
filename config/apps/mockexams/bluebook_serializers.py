@@ -8,7 +8,7 @@ from apps.mockexams.bluebook_models import (
     BluebookExam, BluebookSection, BluebookModule, 
     BluebookExamAttempt, BluebookQuestionResponse
 )
-from apps.questionbank.serializers import QuestionStudentSerializer
+# from apps.questionbank.serializers import QuestionStudentSerializer  # Moved to inline to avoid circular import
 
 
 class BluebookExamSerializer(serializers.ModelSerializer):
@@ -42,7 +42,8 @@ class BluebookSectionSerializer(serializers.ModelSerializer):
 
 class BluebookModuleSerializer(serializers.ModelSerializer):
     """Serializer for Bluebook Digital SAT modules."""
-    questions = QuestionStudentSerializer(many=True, read_only=True)
+    # questions = QuestionStudentSerializer(many=True, read_only=True)
+    questions = serializers.SerializerMethodField()
     is_adaptive = serializers.ReadOnlyField()
     section_type = serializers.ReadOnlyField()
     
@@ -53,10 +54,15 @@ class BluebookModuleSerializer(serializers.ModelSerializer):
             'difficulty_level', 'questions', 'is_adaptive', 'section_type'
         ]
 
+    def get_questions(self, obj):
+        from apps.questionbank.serializers import QuestionStudentSerializer
+        return QuestionStudentSerializer(obj.questions.all(), many=True).data
+
 
 class BluebookQuestionResponseSerializer(serializers.ModelSerializer):
     """Serializer for individual question responses."""
-    question = QuestionStudentSerializer(read_only=True)
+    # question = QuestionStudentSerializer(read_only=True)
+    question = serializers.SerializerMethodField()
     
     class Meta:
         model = BluebookQuestionResponse
@@ -65,6 +71,10 @@ class BluebookQuestionResponseSerializer(serializers.ModelSerializer):
             'time_spent_seconds', 'is_flagged', 'answer_order'
         ]
         read_only_fields = ['is_correct']
+
+    def get_question(self, obj):
+        from apps.questionbank.serializers import QuestionStudentSerializer
+        return QuestionStudentSerializer(obj.question).data
 
 
 class BluebookExamAttemptSerializer(serializers.ModelSerializer):
@@ -130,7 +140,7 @@ class BluebookExamAttemptCreateSerializer(serializers.ModelSerializer):
 class BluebookModuleSubmissionSerializer(serializers.Serializer):
     """Serializer for submitting module answers."""
     answers = serializers.DictField(
-        child=serializers.CharField(max_length=10),
+        child=serializers.CharField(max_length=50),
         help_text="Dictionary of question_id: selected_answer"
     )
     flagged_questions = serializers.ListField(
@@ -334,7 +344,8 @@ class BluebookExamListSerializer(serializers.ModelSerializer):
 
 class BluebookModuleStatusSerializer(serializers.ModelSerializer):
     """Serializer for current module status."""
-    questions = QuestionStudentSerializer(many=True, read_only=True)
+    # questions = QuestionStudentSerializer(many=True, read_only=True)
+    questions = serializers.SerializerMethodField()
     time_remaining_seconds = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
     flagged_questions = serializers.SerializerMethodField()
@@ -347,6 +358,10 @@ class BluebookModuleStatusSerializer(serializers.ModelSerializer):
             'time_remaining_seconds', 'progress_percentage',
             'flagged_questions'
         ]
+
+    def get_questions(self, obj):
+        from apps.questionbank.serializers import QuestionStudentSerializer
+        return QuestionStudentSerializer(obj.questions.all(), many=True).data
     
     def get_time_remaining_seconds(self, obj):
         """Get remaining time for this module."""

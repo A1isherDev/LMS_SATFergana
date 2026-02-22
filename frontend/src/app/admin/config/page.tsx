@@ -5,7 +5,8 @@ import AuthGuard from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
 import { adminApi } from '@/utils/api';
 import { Save, RefreshCw, AlertTriangle, CheckCircle, Database, Lock, Globe } from 'lucide-react';
-import { renderDiffs } from 'diff'; // This seems wrong, renderDiffs is a markdown tool helper, not a library I can import. I'll remove it.
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 interface SystemConfig {
     site_name: string;
@@ -19,20 +20,23 @@ interface SystemConfig {
 }
 
 export default function SystemConfigPage() {
+    const { user } = useAuth();
     const [config, setConfig] = useState<SystemConfig | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
+        if (user && user.role !== 'ADMIN') {
+            toast.error('Unauthorized access. Admins only.');
+            return;
+        }
         fetchConfig();
-    }, []);
+    }, [user]);
 
     const fetchConfig = async () => {
         try {
             setIsLoading(true);
             const data = await adminApi.getSystemConfig() as unknown as SystemConfig;
-            // Handle potential API failure or wrapping
             if (data) {
                 setConfig(data);
             } else {
@@ -40,7 +44,7 @@ export default function SystemConfigPage() {
             }
         } catch (error) {
             console.error('Error fetching config:', error);
-            // Fallback default config
+            toast.error('Failed to load configuration. Using defaults.');
             setConfig({
                 site_name: 'SAT Fergana LMS',
                 maintenance_mode: false,
@@ -66,18 +70,40 @@ export default function SystemConfigPage() {
         if (!config) return;
         try {
             setIsSaving(true);
-            setMessage(null);
             await adminApi.updateSystemConfig(config);
-            setMessage({ type: 'success', text: 'Configuration saved successfully.' });
+            toast.success('Configuration saved successfully.');
         } catch (error) {
             console.error('Error saving config:', error);
-            setMessage({ type: 'error', text: 'Failed to save configuration.' });
+            toast.error('Failed to save configuration.');
         } finally {
             setIsSaving(false);
         }
     };
 
-    if (!config) return null; // Or skeleton
+    if (user && user.role !== 'ADMIN') {
+        return (
+            <AuthGuard>
+                <DashboardLayout>
+                    <div className="flex items-center justify-center h-[60vh]">
+                        <div className="text-center">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+                            <p className="text-gray-500">You do not have permission to view this page.</p>
+                        </div>
+                    </div>
+                </DashboardLayout>
+            </AuthGuard>
+        );
+    }
+
+    if (!config) return (
+        <AuthGuard>
+            <DashboardLayout>
+                <div className="flex items-center justify-center h-[60vh]">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                </div>
+            </DashboardLayout>
+        </AuthGuard>
+    );
 
     return (
         <AuthGuard>
@@ -85,25 +111,18 @@ export default function SystemConfigPage() {
                 <div className="max-w-4xl mx-auto space-y-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">System Configuration</h1>
-                            <p className="text-gray-500 dark:text-gray-400">Manage global platform settings</p>
+                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white uppercase italic font-black">System Configuration</h1>
+                            <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-[10px]">Manage global platform settings</p>
                         </div>
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                            className="flex items-center px-8 py-3 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 disabled:opacity-50 font-black italic uppercase tracking-widest text-xs"
                         >
                             {isSaving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                             Save Changes
                         </button>
                     </div>
-
-                    {message && (
-                        <div className={`p-4 rounded-xl flex items-center ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
-                            {message.type === 'success' ? <CheckCircle className="h-5 w-5 mr-3" /> : <AlertTriangle className="h-5 w-5 mr-3" />}
-                            {message.text}
-                        </div>
-                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -211,8 +230,8 @@ export default function SystemConfigPage() {
                         </div>
 
                     </div>
-                </div>
-            </DashboardLayout>
-        </AuthGuard>
+                </div >
+            </DashboardLayout >
+        </AuthGuard >
     );
 }

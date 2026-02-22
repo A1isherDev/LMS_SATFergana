@@ -18,7 +18,7 @@ class NotificationTests(TestCase):
         self.actor = User.objects.create_user(
             email=f'teacher_{uid}@example.com',
             password='password123',
-            role='TEACHER'
+            role='MAIN_TEACHER'
         )
         self.class_obj = Class.objects.create(
             name='Test Class',

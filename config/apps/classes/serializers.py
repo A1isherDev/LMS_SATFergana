@@ -97,7 +97,7 @@ class ClassSerializer(serializers.ModelSerializer):
         from apps.users.models import User
         
         try:
-            teacher = User.objects.get(id=value, role='TEACHER')
+            teacher = User.objects.get(id=value, role__in=['MAIN_TEACHER', 'SUPPORT_TEACHER'])
         except User.DoesNotExist:
             raise serializers.ValidationError("Invalid teacher ID or user is not a teacher")
         

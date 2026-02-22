@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { Toaster } from 'react-hot-toast';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +43,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
+            <Toaster position="top-center" toastOptions={{
+              className: 'font-bold bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800',
+              duration: 3000,
+            }} />
             {children}
           </AuthProvider>
         </ThemeProvider>

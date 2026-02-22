@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGuard from '../../components/AuthGuard';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -16,7 +16,10 @@ import {
   FileText,
   TrendingUp,
   Star,
-  Download
+  Download,
+  ArrowRight,
+  ChevronRight,
+  Target
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, formatDateTime, getDifficultyColor } from '../../utils/helpers';
@@ -51,7 +54,7 @@ interface Homework {
   };
 }
 
-export default function HomeworkPage() {
+function HomeworkContent() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -84,7 +87,6 @@ export default function HomeworkPage() {
       link.remove();
     } catch (error) {
       console.error('Error exporting grades:', error);
-      alert('Failed to export grades. Please try again.');
     }
   };
 
@@ -92,32 +94,24 @@ export default function HomeworkPage() {
     const fetchHomeworkData = async () => {
       try {
         let response;
-        if (user?.role === 'TEACHER') {
+        if (user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') {
           response = await homeworkApi.getHomework() as any;
         } else {
           response = await homeworkApi.getStudentHomework() as any;
         }
         setHomework(response.results || response);
       } catch (error) {
-        console.error('Error fetching homework data:', error);
-        // Set empty array on error
         setHomework([]);
       } finally {
         setIsLoading(false);
       }
     };
-
-    if (user) {
-      fetchHomeworkData();
-    } else {
-      setIsLoading(false);
-    }
+    if (user) fetchHomeworkData();
+    else setIsLoading(false);
   }, [user]);
 
   const getHomeworkStatus = (hw: Homework) => {
-    if (hw.submission) {
-      return hw.submission.is_late ? 'late' : 'submitted';
-    }
+    if (hw.submission) return hw.submission.is_late ? 'late' : 'submitted';
     const now = new Date();
     const dueDate = new Date(hw.due_date);
     return now > dueDate ? 'overdue' : 'pending';
@@ -127,51 +121,20 @@ export default function HomeworkPage() {
     const matchesSearch = hw.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       hw.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       hw.class_obj.name.toLowerCase().includes(searchTerm.toLowerCase());
-
     if (filterStatus === 'all') return matchesSearch;
-
     const status = getHomeworkStatus(hw);
     return matchesSearch && status === filterStatus;
   });
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'submitted':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'overdue':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'late':
-        return <Clock className="h-4 w-4 text-orange-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'submitted':
-        return 'bg-green-100 text-green-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
-      case 'late':
-        return 'bg-orange-100 text-orange-800';
-      default:
-        return 'bg-yellow-100 text-yellow-800';
-    }
-  };
 
   if (isLoading) {
     return (
       <AuthGuard>
         <DashboardLayout>
-          <div className="animate-pulse">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-xl w-48"></div>
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-white rounded-lg shadow p-6">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                </div>
+                <div key={i} className="h-40 bg-slate-200 dark:bg-slate-700 rounded-[2.5rem]"></div>
               ))}
             </div>
           </div>
@@ -183,161 +146,122 @@ export default function HomeworkPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="space-y-6">
+        <div className="space-y-12 pb-20">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Homework</h1>
-              <p className="text-gray-600">
-                {user?.role === 'TEACHER' ? 'Manage assignments and track student progress' : 'View and complete your assignments'}
-              </p>
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 block">Curriculum</span>
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Study Assignments</h1>
+              <p className="text-slate-500 dark:text-slate-400 font-medium max-w-2xl mt-2">Track your progress across specialized modules and complete assigned tasks.</p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleExportGrades}
-                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                title="Download grades as CSV"
+                className="p-4 bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 rounded-2xl hover:scale-105 transition-all text-slate-400 hover:text-blue-600 shadow-sm flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export Grades
+                <Download className="h-4 w-4" />
+                Export
               </button>
-              {user?.role === 'TEACHER' && (
+              {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && (
                 <button
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase italic text-xs tracking-widest hover:bg-blue-500 hover:scale-105 transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center"
                   onClick={handleCreateAssignment}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Assignment
+                  New Assignment
                 </button>
               )}
             </div>
           </div>
 
-          {/* Search and Filter */}
-          <div className="flex items-center space-x-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          {/* Search and Filter - Premium Bar */}
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-700 flex flex-col md:flex-row items-center gap-4">
+            <div className="flex-1 relative w-full">
+              <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search homework..."
+                placeholder="Search resources..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-14 pr-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-none rounded-[1.5rem] focus:ring-2 focus:ring-blue-500 transition-all font-medium text-sm"
               />
             </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as any)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="submitted">Submitted</option>
-              <option value="overdue">Overdue</option>
-            </select>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              {['all', 'pending', 'submitted', 'overdue'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status as any)}
+                  className={`px-6 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === status
+                    ? 'bg-slate-900 text-white shadow-lg'
+                    : 'bg-slate-50 dark:bg-slate-900/50 text-slate-400 hover:text-slate-600'
+                    }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Filter Indicator */}
-          {filterParam && filterParam !== 'all' && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Filter className="h-5 w-5 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">
-                  Showing: <span className="font-bold">{filterParam} submissions</span>
-                </span>
-              </div>
-              <button
-                onClick={() => setFilterStatus('all')}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Clear Filter
-              </button>
-            </div>
-          )}
-
           {/* Homework List */}
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-6">
             {filteredHomework.map((hw) => {
               const status = getHomeworkStatus(hw);
               return (
-                <div key={hw.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
-                  <div className="p-6">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 mr-3">{hw.title}</h3>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(hw.difficulty_level)}`}>
-                            {hw.difficulty_level}
-                          </span>
-                          <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(status)}`}>
-                            {status.charAt(0).toUpperCase() + status.slice(1)}
-                          </span>
-                        </div>
-                        <p className="text-gray-600 mb-2">{hw.description}</p>
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <BookOpen className="h-4 w-4 mr-1" />
-                            {hw.class_obj.name}
-                          </div>
-                          <div className="flex items-center">
-                            <FileText className="h-4 w-4 mr-1" />
-                            {hw.total_questions} questions
-                          </div>
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            Due {formatDate(hw.due_date)}
-                          </div>
-                        </div>
+                <div key={hw.id} className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-700 p-8 group hover:border-blue-400 transition-all relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <FileText className="h-24 w-24 text-slate-900 dark:text-white" />
+                  </div>
+
+                  <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className={`px-3 py-1 text-[9px] font-black rounded-lg uppercase tracking-wider ${getDifficultyColor(hw.difficulty_level)}`}>
+                          {hw.difficulty_level}
+                        </span>
+                        <div className="h-1 w-1 rounded-full bg-slate-300" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase italic tracking-widest">{hw.class_obj.name}</span>
                       </div>
-                      <div className="flex items-center">
-                        {getStatusIcon(status)}
+
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-2 leading-none group-hover:text-blue-600 transition-colors">{hw.title}</h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-2xl line-clamp-2 mb-6">{hw.description}</p>
+
+                      <div className="flex flex-wrap items-center gap-6">
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                          <Target className="h-4 w-4 text-slate-300" />
+                          {hw.total_questions} Questions
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                          <Calendar className="h-4 w-4 text-slate-300" />
+                          DUE {formatDate(hw.due_date)}
+                        </div>
+                        {hw.submission && (
+                          <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase tracking-wide">
+                            <CheckCircle className="h-4 w-4" />
+                            SCORE: {hw.submission.score}/{hw.submission.max_score}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Submission Info */}
-                    {hw.submission && (
-                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">Submitted</p>
-                            <p className="text-xs text-gray-500">{formatDateTime(hw.submission.submitted_at)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-semibold text-gray-900">
-                              {hw.submission.score}/{hw.submission.max_score}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {Math.round((hw.submission.score / hw.submission.max_score) * 100)}%
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-500">
-                        Assigned by {hw.assigned_by.first_name} {hw.assigned_by.last_name}
-                      </div>
-                      <div className="flex space-x-2">
+                    <div className="flex items-center gap-3">
+                      {(user?.role === 'MAIN_TEACHER' || user?.role === 'SUPPORT_TEACHER') && (
                         <button
-                          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                          onClick={() => handleViewHomework(hw.id)}
+                          className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:bg-white transition-all text-slate-400 hover:text-blue-600"
+                          onClick={() => router.push(`/analytics?homework_id=${hw.id}`)}
                         >
-                          {hw.submission ? 'View Submission' : 'Start Assignment'}
+                          <TrendingUp className="h-5 w-5" />
                         </button>
-                        {user?.role === 'TEACHER' && (
-                          <button
-                            className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors"
-                            onClick={() => {
-                              router.push(`/analytics?homework_id=${hw.id}`);
-                            }}
-                          >
-                            <TrendingUp className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
+                      )}
+                      <button
+                        onClick={() => handleViewHomework(hw.id)}
+                        className={`px-8 py-4 rounded-2xl font-black uppercase italic text-xs tracking-widest transition-all flex items-center justify-center group/btn ${hw.submission
+                          ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-white'
+                          : 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/10'
+                          }`}
+                      >
+                        {hw.submission ? 'Review Session' : 'Initiate Module'}
+                        <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -347,18 +271,28 @@ export default function HomeworkPage() {
 
           {/* Empty State */}
           {filteredHomework.length === 0 && (
-            <div className="text-center py-12">
-              <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <FileText className="h-6 w-6 text-gray-400" />
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-[3rem] py-24 text-center border-2 border-dashed border-slate-200 dark:border-slate-800">
+              <div className="h-16 w-16 bg-white dark:bg-slate-800 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-sm">
+                <FileText className="h-8 w-8 text-slate-300" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No homework found</h3>
-              <p className="text-gray-500 mb-4">
-                {searchTerm ? 'Try adjusting your search terms' : 'No assignments match your criteria'}
-              </p>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic mb-2">No Records Found</h3>
+              <p className="text-slate-400 font-medium italic">Adjust your filters or contact your coordinator.</p>
             </div>
           )}
         </div>
       </DashboardLayout>
     </AuthGuard>
+  );
+}
+
+export default function HomeworkPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"></div>
+      </div>
+    }>
+      <HomeworkContent />
+    </Suspense>
   );
 }
